@@ -1,10 +1,12 @@
-import { useReducer, useState } from "react";
+import { useLayoutEffect, useReducer, useRef, useState } from "react";
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 import { EditorAxes } from "./editor-view/EditorAxes";
 import { APP_STATE_INITIAL, View, XY } from "./AppState";
 import { applyAppAction } from "./AppAction";
 import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
+import { SketchPoint } from "./editor-view/SketchPoint";
+import { ZOOM_SPEED } from "./constants";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -21,6 +23,22 @@ function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   };
 }
 
+function useKeyDown(callback: (key: string) => void): void {
+  const callbackRef = useRef(callback);
+  useLayoutEffect(() => {
+    callbackRef.current = callback;
+  });
+  useLayoutEffect(() => {
+    const listener = (e: KeyboardEvent): void => {
+      callbackRef.current(e.key);
+    };
+    document.body.addEventListener("keydown", listener);
+    return (): void => {
+      document.body.removeEventListener("keydown", listener);
+    };
+  }, []);
+}
+
 function App() {
   const [appState, dispatch] = useReducer(applyAppAction, APP_STATE_INITIAL);
 
@@ -31,8 +49,13 @@ function App() {
   const panning = appState.controls.panning;
 
   const [at, setAt] = useState({ x: 0, y: 0 });
+
+  useKeyDown((key) => {
+    dispatch({ action: "INTERFACE_KEYDOWN", key });
+  });
+
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative" }} className="editor">
       <Canvas
         viewCenter={view.center}
         viewSize={view.size}
@@ -57,7 +80,7 @@ function App() {
           }
         }}
         onZoom={(zoomCenter, zoomSteps) => {
-          setView(zoomTo(view, zoomCenter, zoomSteps / 5));
+          setView(zoomTo(view, zoomCenter, zoomSteps * ZOOM_SPEED));
         }}
         onMouseUp={(buttons, _at) => {
           if ((buttons & 4) === 0 && panning) {
@@ -68,11 +91,29 @@ function App() {
           if ((buttons & 4) !== 0 && !panning) {
             dispatch({ action: "BEGIN_PANNING" });
           }
+          if (buttons === 1) {
+            dispatch({ action: "INTERFACE_CLICK", at });
+          }
         }}
       >
         <EditorAxes />
-        <circle cx={at.x} cy={at.y} r={20} fill="white" />
+        {appState.sketch.sketchElements.map((element) => {
+          if (element.sketchElement === "SketchElementPoint") {
+            return (
+              <SketchPoint
+                key={element.id.toString()}
+                id={element.id}
+                position={element.position}
+              />
+            );
+          }
+          return null;
+        })}
       </Canvas>
+
+      <div style={{ position: "fixed", left: 20, bottom: 20 }}>
+        {appState.controls.activeSketchTool.sketchTool}
+      </div>
     </div>
   );
 }

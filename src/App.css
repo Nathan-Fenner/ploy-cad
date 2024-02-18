@@ -3,4 +3,14 @@
   --editor-axis-stroke-primary: #578;
   --editor-axis-stroke-secondary: #223344;
   --editor-axis-stroke-tertiary: #182839;
+
+  --sketch-point-stroke: rgb(218, 249, 255);
+  --sketch-point-fill: transparent;
+
+  --editor-text-color: white;
+}
+
+.editor {
+  color: var(--editor-text-color);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
