@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { createContext, useLayoutEffect, useRef, useState } from "react";
 
 type XY = {
   readonly x: number;
@@ -56,6 +56,11 @@ function screenToMouse(
 }
 
 /**
+ * The number of SVG units in a single pixel.
+ */
+export const PixelSize = createContext(1);
+
+/**
  * Renders a zoomable SVG.
  */
 export function Canvas({
@@ -71,6 +76,8 @@ export function Canvas({
 }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null!);
 
+  const [pixelSize, setPixelSize] = useState(1);
+
   useLayoutEffectOnInterval(() => {
     const svg = svgRef.current;
     const bounds = svg.getBoundingClientRect();
@@ -84,6 +91,10 @@ export function Canvas({
         viewCenter.y - (scale * bounds.height) / 2
       } ${scale * bounds.width} ${scale * bounds.height}`,
     );
+
+    if (pixelSize !== viewSize / minSize) {
+      setPixelSize(viewSize / minSize);
+    }
   });
 
   return (
@@ -138,7 +149,7 @@ export function Canvas({
           }
         }}
       >
-        {children}
+        <PixelSize.Provider value={pixelSize}>{children}</PixelSize.Provider>
       </svg>
     </div>
   );
@@ -148,12 +159,14 @@ export function Canvas({
  * Runs `f` ones in `useLayoutEffect`, and then periodically
  * every 500 milliseconds until the next render.
  */
-function useLayoutEffectOnInterval(f: () => void): void {
+function useLayoutEffectOnInterval(
+  f: (options: { isDelayed: boolean }) => void,
+): void {
   useLayoutEffect(() => {
-    f();
+    f({ isDelayed: false });
 
     const interval = setInterval(() => {
-      f();
+      f({ isDelayed: true });
     }, 500);
 
     return () => {

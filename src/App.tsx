@@ -56,7 +56,7 @@ function App() {
           }
         }}
         onZoom={(zoomCenter, zoomSteps) => {
-          setView(zoomTo(view, zoomCenter, zoomSteps));
+          setView(zoomTo(view, zoomCenter, zoomSteps / 5));
         }}
         onMouseUp={(buttons, _at) => {
           if ((buttons & 4) === 0 && panning) {
