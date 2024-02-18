@@ -8,6 +8,7 @@ function colorMix(a: string, b: string, alpha: number): string {
 }
 
 const BAND_SIZE = 5;
+const COUNT = 200;
 
 export const EditorAxes = memo(() => {
   const pixelSize = useContext(PixelSize);
@@ -15,7 +16,7 @@ export const EditorAxes = memo(() => {
 
   const fractionalGridLevel = Math.log(pixelSize * 50) / Math.log(BAND_SIZE);
   const SPACING = Math.pow(BAND_SIZE, Math.floor(fractionalGridLevel));
-  const COUNT = 100;
+
   const EXTENT = COUNT * SPACING;
 
   const elements: JSX.Element[] = [];
@@ -43,7 +44,8 @@ export const EditorAxes = memo(() => {
     );
   }
 
-  const fractionalLevelPart = fractionalGridLevel % 1;
+  const fractionalLevelPart =
+    fractionalGridLevel - Math.floor(fractionalGridLevel);
 
   const COLOR_BACKGROUND = "var(--editor-background)";
   const COLOR_SECONDARY = "var(--editor-axis-stroke-secondary)";
