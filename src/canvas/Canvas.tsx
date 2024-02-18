@@ -27,7 +27,33 @@ type CanvasProps = {
    * element.
    */
   containerStyle?: React.CSSProperties;
+
+  /**
+   * Whenever the mouse moves, this callback is called
+   * with the mouse's position in SVG coordinates.
+   */
+  onMouseMove?: (newMousePos: XY, delta: XY) => void;
+
+  /**
+   * When the user zooms in/out by scrolling, this
+   * callback is called with the mouse's position and
+   * the amount of inward/outward zoom.
+   */
+  onZoom?: (zoomCenter: XY, zoomSteps: number) => void;
+
+  onMouseDown?: (buttons: number, at: XY) => void;
+  onMouseUp?: (buttons: number, at: XY) => void;
 };
+
+function screenToMouse(
+  e: { readonly clientX: number; readonly clientY: number },
+  svg: SVGSVGElement,
+): XY {
+  const p = svg.createSVGPoint();
+  p.x = e.clientX;
+  p.y = e.clientY;
+  return p.matrixTransform(svg.getScreenCTM()!.inverse());
+}
 
 /**
  * Renders a zoomable SVG.
@@ -38,6 +64,10 @@ export function Canvas({
   viewSize,
   style,
   containerStyle,
+  onMouseMove,
+  onZoom,
+  onMouseDown,
+  onMouseUp,
 }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null!);
 
@@ -52,7 +82,7 @@ export function Canvas({
       "viewBox",
       `${viewCenter.x - (scale * bounds.width) / 2} ${
         viewCenter.y - (scale * bounds.height) / 2
-      } ${scale * bounds.width} ${scale * bounds.height}`
+      } ${scale * bounds.width} ${scale * bounds.height}`,
     );
   });
 
@@ -74,6 +104,38 @@ export function Canvas({
           width: "100%",
           height: "100%",
           ...style,
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+        }}
+        onMouseMove={(e) => {
+          const svg = e.currentTarget;
+          const p = screenToMouse(e, svg);
+          const p2 = screenToMouse(
+            {
+              clientX: e.clientX + e.movementX,
+              clientY: e.clientY + e.movementY,
+            },
+            svg,
+          );
+
+          onMouseMove?.({ x: p.x, y: p.y }, { x: p2.x - p.x, y: p2.y - p.y });
+        }}
+        onWheel={(e) => {
+          if (onZoom) {
+            const p = screenToMouse(e, e.currentTarget);
+            onZoom(p, e.deltaY);
+          }
+        }}
+        onMouseDown={(e) => {
+          if (onMouseDown) {
+            onMouseDown(e.buttons, screenToMouse(e, e.currentTarget));
+          }
+        }}
+        onMouseUp={(e) => {
+          if (onMouseUp) {
+            onMouseUp(e.buttons, screenToMouse(e, e.currentTarget));
+          }
         }}
       >
         {children}
