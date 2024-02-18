@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useReducer, useState } from "react";
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 import { EditorAxes } from "./editor-view/EditorAxes";
 import { APP_STATE_INITIAL, View, XY } from "./AppState";
+import { applyAppAction } from "./AppAction";
+import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -20,23 +22,13 @@ function zoomTo(view: View, zoomCenter: XY, steps: number): View {
 }
 
 function App() {
-  const [appState, setAppState] = useState(APP_STATE_INITIAL);
+  const [appState, dispatch] = useReducer(applyAppAction, APP_STATE_INITIAL);
 
   const view = appState.view;
   const setView = (view: View): void => {
-    setAppState((app) => {
-      return { ...app, view };
-    });
+    dispatch({ action: "CHANGE_VIEW", newView: view });
   };
   const panning = appState.controls.panning;
-  const setPanning = (panning: boolean): void => {
-    setAppState((app) => {
-      return {
-        ...app,
-        controls: { ...app.controls, panning },
-      };
-    });
-  };
 
   const [at, setAt] = useState({ x: 0, y: 0 });
   return (
@@ -45,7 +37,7 @@ function App() {
         viewCenter={view.center}
         viewSize={view.size}
         containerStyle={{
-          background: "var(--editor-background)",
+          background: COLOR_EDITOR_BACKGROUND,
           position: "fixed",
           left: 0,
           right: 0,
@@ -69,12 +61,12 @@ function App() {
         }}
         onMouseUp={(buttons, _at) => {
           if ((buttons & 4) === 0 && panning) {
-            setPanning(false);
+            dispatch({ action: "STOP_PANNING" });
           }
         }}
         onMouseDown={(buttons, _at) => {
           if ((buttons & 4) !== 0 && !panning) {
-            setPanning(true);
+            dispatch({ action: "BEGIN_PANNING" });
           }
         }}
       >

@@ -1,5 +1,10 @@
 import { memo, useContext } from "react";
 import { PixelSize } from "../canvas/Canvas";
+import {
+  COLOR_EDITOR_AXIS_STROKE_SECONDARY,
+  COLOR_EDITOR_AXIS_STROKE_TERTIARY,
+  COLOR_EDITOR_BACKGROUND,
+} from "../palette/colors";
 
 function colorMix(a: string, b: string, alpha: number): string {
   return `color-mix(in srgb, ${a} ${Math.floor(
@@ -47,13 +52,17 @@ export const EditorAxes = memo(() => {
   const fractionalLevelPart =
     fractionalGridLevel - Math.floor(fractionalGridLevel);
 
-  const COLOR_BACKGROUND = "var(--editor-background)";
-  const COLOR_SECONDARY = "var(--editor-axis-stroke-secondary)";
-  const COLOR_TERTIARY = "var(--editor-axis-stroke-tertiary)";
-
   const lowerAlpha = Math.max(0, Math.min(1, 2 - fractionalLevelPart * 3));
-  const lowerColor = colorMix(COLOR_TERTIARY, COLOR_BACKGROUND, lowerAlpha);
-  const upperColor = colorMix(COLOR_SECONDARY, COLOR_TERTIARY, lowerAlpha);
+  const lowerColor = colorMix(
+    COLOR_EDITOR_AXIS_STROKE_TERTIARY,
+    COLOR_EDITOR_BACKGROUND,
+    lowerAlpha,
+  );
+  const upperColor = colorMix(
+    COLOR_EDITOR_AXIS_STROKE_SECONDARY,
+    COLOR_EDITOR_AXIS_STROKE_TERTIARY,
+    lowerAlpha,
+  );
 
   for (let i = 1; i <= COUNT; i++) {
     if (i % BAND_SIZE === 0) {
@@ -61,7 +70,7 @@ export const EditorAxes = memo(() => {
     }
     const stroke =
       i % (BAND_SIZE * BAND_SIZE) === 0
-        ? COLOR_SECONDARY
+        ? COLOR_EDITOR_AXIS_STROKE_SECONDARY
         : i % BAND_SIZE === 0
         ? upperColor
         : lowerColor;
@@ -71,7 +80,7 @@ export const EditorAxes = memo(() => {
   for (let i = BAND_SIZE; i <= COUNT; i += BAND_SIZE) {
     const stroke =
       i % (BAND_SIZE * BAND_SIZE) === 0
-        ? COLOR_SECONDARY
+        ? COLOR_EDITOR_AXIS_STROKE_SECONDARY
         : i % BAND_SIZE === 0
         ? upperColor
         : lowerColor;
