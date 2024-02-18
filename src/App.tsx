@@ -2,10 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 import { EditorAxes } from "./editor-view/EditorAxes";
-
-type XY = { readonly x: number; readonly y: number };
-
-type View = { readonly center: XY; readonly size: number };
+import { APP_STATE_INITIAL, View, XY } from "./AppState";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -23,13 +20,25 @@ function zoomTo(view: View, zoomCenter: XY, steps: number): View {
 }
 
 function App() {
-  const [view, setView] = useState({
-    center: { x: 0, y: 0 },
-    size: 300,
-  });
+  const [appState, setAppState] = useState(APP_STATE_INITIAL);
+
+  const view = appState.view;
+  const setView = (view: View): void => {
+    setAppState((app) => {
+      return { ...app, view };
+    });
+  };
+  const panning = appState.controls.panning;
+  const setPanning = (panning: boolean): void => {
+    setAppState((app) => {
+      return {
+        ...app,
+        controls: { ...app.controls, panning },
+      };
+    });
+  };
 
   const [at, setAt] = useState({ x: 0, y: 0 });
-  const [panning, setPanning] = useState(false);
   return (
     <div style={{ position: "relative" }}>
       <Canvas
