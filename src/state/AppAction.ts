@@ -3,11 +3,12 @@ import {
   LineID,
   PointID,
   SketchElementID,
-  SketchToolState,
   View,
+  getPointPosition,
 } from "./AppState";
-import { distance } from "../geometry/vector";
+import { distance, pointAdd } from "../geometry/vector";
 import { ID } from "../id";
+import { SketchToolState } from "./ToolState";
 
 export type AppAction =
   | AppActionChangeView
@@ -16,9 +17,11 @@ export type AppAction =
   | AppActionChangeTool
   | AppActionInterfaceClick
   | AppActionInterfaceClickRelease
+  | AppActionInterfaceMouseMove
   | AppActionInterfaceKeyDown
   | AppActionSketchCreatePoint
-  | AppActionSketchCreateLine;
+  | AppActionSketchCreateLine
+  | AppActionSketchMovePoint;
 
 export type AppActionChangeTool = {
   action: "STATE_CHANGE_TOOL";
@@ -47,6 +50,11 @@ export type AppActionInterfaceClickRelease = {
   action: "INTERFACE_CLICK_RELEASE";
   at: XY;
 };
+export type AppActionInterfaceMouseMove = {
+  action: "INTERFACE_MOUSE_MOVE";
+  position: XY;
+  delta: XY;
+};
 export type AppActionInterfaceKeyDown = {
   action: "INTERFACE_KEYDOWN";
   key: string;
@@ -63,6 +71,12 @@ export type AppActionSketchCreateLine = {
   id: LineID;
   endpointA: PointID;
   endpointB: PointID;
+};
+
+export type AppActionSketchMovePoint = {
+  action: "SKETCH_MOVE_POINT";
+  point: LineID;
+  toPosition: XY;
 };
 
 const SELECT_NEAR_THRESHOLD = 0.015;
@@ -345,9 +359,8 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
           return applyAppAction(app, {
             action: "STATE_CHANGE_TOOL",
             newTool: {
-              sketchTool: "TOOL_SELECT",
-              selected: new Set([nearbyPoint.id]),
-              boxCorner: null,
+              sketchTool: "TOOL_DRAG_POINT",
+              point: nearbyPoint.id,
             },
           });
         }
@@ -372,6 +385,32 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
             boxCorner: null,
             selected: new Set(withinBox),
           },
+        });
+      }
+      if (app.controls.activeSketchTool.sketchTool === "TOOL_DRAG_POINT") {
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: {
+            sketchTool: "TOOL_SELECT",
+            selected: new Set([app.controls.activeSketchTool.point]),
+            boxCorner: null,
+          },
+        });
+      }
+      return app;
+    }
+    case "INTERFACE_MOUSE_MOVE": {
+      if (app.controls.activeSketchTool.sketchTool === "TOOL_DRAG_POINT") {
+        // Drag the point.
+        const currentPosition = getPointPosition(
+          app,
+          app.controls.activeSketchTool.point,
+        );
+        const targetPosition = pointAdd(currentPosition, action.delta);
+        return applyAppAction(app, {
+          action: "SKETCH_MOVE_POINT",
+          point: app.controls.activeSketchTool.point,
+          toPosition: targetPosition,
         });
       }
       return app;
@@ -429,6 +468,27 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
               endpointB: action.endpointB,
             },
           ],
+        },
+      };
+    }
+    case "SKETCH_MOVE_POINT": {
+      return {
+        ...app,
+        sketch: {
+          ...app.sketch,
+          sketchElements: app.sketch.sketchElements.map((sketchElement) => {
+            if (
+              sketchElement.sketchElement === "SketchElementPoint" &&
+              sketchElement.id === action.point
+            ) {
+              return {
+                ...sketchElement,
+                position: action.toPosition,
+              };
+            } else {
+              return sketchElement;
+            }
+          }),
         },
       };
     }

@@ -5,7 +5,8 @@ export type SketchToolState =
   | SketchToolCreatePoint
   | SketchToolCreateLine
   | SketchToolCreateLineFromPoint
-  | SketchToolSelect;
+  | SketchToolSelect
+  | SketchToolDragPoint;
 
 export type SketchToolNone = {
   sketchTool: "TOOL_NONE";
@@ -15,6 +16,11 @@ export type SketchToolSelect = {
   sketchTool: "TOOL_SELECT";
   boxCorner: XY | null;
   selected: ReadonlySet<SketchElementID>;
+};
+
+export type SketchToolDragPoint = {
+  sketchTool: "TOOL_DRAG_POINT";
+  point: PointID;
 };
 
 export type SketchToolCreatePoint = {

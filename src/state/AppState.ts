@@ -91,3 +91,16 @@ export const APP_STATE_INITIAL: AppState = {
     ],
   },
 };
+
+export function getPointPosition(app: AppState, point: PointID): XY {
+  // TODO: Cache this, so that it's faster.
+  for (const element of app.sketch.sketchElements) {
+    if (
+      element.sketchElement === "SketchElementPoint" &&
+      element.id === point
+    ) {
+      return element.position;
+    }
+  }
+  throw new Error(`the application has no sketch element point '${point}'`);
+}

@@ -80,6 +80,9 @@ function App() {
     if (appState.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
       return appState.controls.activeSketchTool.selected;
     }
+    if (appState.controls.activeSketchTool.sketchTool === "TOOL_DRAG_POINT") {
+      return new Set([appState.controls.activeSketchTool.point]);
+    }
     return new Set();
   }, [appState.controls.activeSketchTool]);
 
@@ -107,6 +110,7 @@ function App() {
               size: view.size,
             });
           }
+          dispatch({ action: "INTERFACE_MOUSE_MOVE", position: p, delta });
         }}
         onZoom={(zoomCenter, zoomSteps) => {
           setView(zoomTo(view, zoomCenter, zoomSteps * ZOOM_SPEED));
