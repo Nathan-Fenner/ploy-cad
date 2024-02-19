@@ -16,6 +16,7 @@ import { SketchPoint } from "./editor-view/SketchPoint";
 import { ZOOM_SPEED } from "./constants";
 import { SketchLine } from "./editor-view/SketchLine";
 import { SketchMarker } from "./editor-view/SketchMarker";
+import { SketchAABB } from "./editor-view/SketchAABB";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -107,6 +108,9 @@ function App() {
           if ((buttons & 4) === 0 && panning) {
             dispatch({ action: "STOP_PANNING" });
           }
+          if (!(buttons & 1)) {
+            dispatch({ action: "INTERFACE_CLICK_RELEASE", at });
+          }
         }}
         onMouseDown={(buttons, _at) => {
           if ((buttons & 4) !== 0 && !panning) {
@@ -129,6 +133,11 @@ function App() {
                   endpointA={endpointA}
                   endpointB={endpointB}
                   lineStyle="sketch"
+                  selected={
+                    appState.controls.activeSketchTool.sketchTool ===
+                      "TOOL_SELECT" &&
+                    appState.controls.activeSketchTool.selected.has(element.id)
+                  }
                 />
               );
             }
@@ -140,8 +149,12 @@ function App() {
             return (
               <SketchPoint
                 key={element.id.toString()}
-                id={element.id}
                 position={element.position}
+                selected={
+                  appState.controls.activeSketchTool.sketchTool ===
+                    "TOOL_SELECT" &&
+                  appState.controls.activeSketchTool.selected.has(element.id)
+                }
               />
             );
           }
@@ -189,6 +202,19 @@ function App() {
             sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT"
           ) {
             return <SketchMarker position={hoveringPoint.position} />;
+          }
+
+          if (
+            sketchTool.sketchTool === "TOOL_SELECT" &&
+            sketchTool.boxCorner !== null
+          ) {
+            return (
+              <SketchAABB
+                endpointA={sketchTool.boxCorner}
+                endpointB={at}
+                dashed={at.x < sketchTool.boxCorner.x}
+              />
+            );
           }
           return null;
         })()}

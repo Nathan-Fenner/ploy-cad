@@ -34,10 +34,17 @@ export type SketchToolState =
   | SketchToolNone
   | SketchToolCreatePoint
   | SketchToolCreateLine
-  | SketchToolCreateLineFromPoint;
+  | SketchToolCreateLineFromPoint
+  | SketchToolSelect;
 
 export type SketchToolNone = {
   sketchTool: "TOOL_NONE";
+};
+
+export type SketchToolSelect = {
+  sketchTool: "TOOL_SELECT";
+  boxCorner: XY | null;
+  selected: ReadonlySet<SketchElementID>;
 };
 
 export type SketchToolCreatePoint = {

@@ -10,6 +10,7 @@
 
   --sketch-marker-stroke: rgb(255, 117, 31);
   --sketch-preview: rgb(255, 117, 31);
+  --sketch-selected: rgb(31, 109, 255);
 
   --editor-text-color: white;
 }
