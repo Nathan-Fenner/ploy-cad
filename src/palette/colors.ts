@@ -8,3 +8,4 @@ export const COLOR_EDITOR_AXIS_STROKE_TERTIARY =
 
 export const COLOR_SKETCH_POINT_STROKE = "var(--sketch-point-stroke)";
 export const COLOR_SKETCH_POINT_FILL = "var(--sketch-point-fill)";
+export const COLOR_SKETCH_LINE_STROKE = "var(--sketch-line-stroke)";

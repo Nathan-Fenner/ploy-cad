@@ -1,12 +1,13 @@
-import { useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 import { EditorAxes } from "./editor-view/EditorAxes";
-import { APP_STATE_INITIAL, View, XY } from "./AppState";
+import { APP_STATE_INITIAL, PointID, View, XY } from "./AppState";
 import { applyAppAction } from "./AppAction";
 import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
 import { SketchPoint } from "./editor-view/SketchPoint";
 import { ZOOM_SPEED } from "./constants";
+import { SketchLine } from "./editor-view/SketchLine";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -54,6 +55,16 @@ function App() {
     dispatch({ action: "INTERFACE_KEYDOWN", key });
   });
 
+  const pointPositions = useMemo(() => {
+    const positions = new Map<PointID, XY>();
+    for (const element of appState.sketch.sketchElements) {
+      if (element.sketchElement === "SketchElementPoint") {
+        positions.set(element.id, element.position);
+      }
+    }
+    return positions;
+  }, [appState.sketch.sketchElements]);
+
   return (
     <div style={{ position: "relative" }} className="editor">
       <Canvas
@@ -97,6 +108,22 @@ function App() {
         }}
       >
         <EditorAxes />
+        {appState.sketch.sketchElements.map((element) => {
+          if (element.sketchElement === "SketchElementLine") {
+            const endpointA = pointPositions.get(element.endpointA);
+            const endpointB = pointPositions.get(element.endpointB);
+            if (endpointA !== undefined && endpointB !== undefined) {
+              return (
+                <SketchLine
+                  key={element.id.toString()}
+                  endpointA={endpointA}
+                  endpointB={endpointB}
+                />
+              );
+            }
+          }
+          return null;
+        })}
         {appState.sketch.sketchElements.map((element) => {
           if (element.sketchElement === "SketchElementPoint") {
             return (
