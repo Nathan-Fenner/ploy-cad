@@ -10,7 +10,11 @@ import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 import { EditorAxes } from "./editor-view/EditorAxes";
 import { APP_STATE_INITIAL, PointID, View, XY } from "./state/AppState";
-import { applyAppAction, findOrCreatePointNear } from "./state/AppAction";
+import {
+  applyAppActionImplementation,
+  findOrCreatePointNear,
+  findPointNear,
+} from "./state/AppAction";
 import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
 import { SketchPoint } from "./editor-view/SketchPoint";
 import { ZOOM_SPEED } from "./constants";
@@ -34,14 +38,16 @@ function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   };
 }
 
-function useKeyDown(callback: (key: string) => void): void {
+function useKeyDown(
+  callback: (key: string, modifiers: { ctrlKey: boolean }) => void,
+): void {
   const callbackRef = useRef(callback);
   useLayoutEffect(() => {
     callbackRef.current = callback;
   });
   useLayoutEffect(() => {
     const listener = (e: KeyboardEvent): void => {
-      callbackRef.current(e.key);
+      callbackRef.current(e.key, { ctrlKey: e.ctrlKey });
     };
     document.body.addEventListener("keydown", listener);
     return (): void => {
@@ -51,7 +57,10 @@ function useKeyDown(callback: (key: string) => void): void {
 }
 
 function App() {
-  const [appState, dispatch] = useReducer(applyAppAction, APP_STATE_INITIAL);
+  const [appState, dispatch] = useReducer(
+    applyAppActionImplementation,
+    APP_STATE_INITIAL,
+  );
 
   const view = appState.view;
   const setView = (view: View): void => {
@@ -61,8 +70,8 @@ function App() {
 
   const [at, setAt] = useState({ x: 0, y: 0 });
 
-  useKeyDown((key) => {
-    dispatch({ action: "INTERFACE_KEYDOWN", key });
+  useKeyDown((key, { ctrlKey }) => {
+    dispatch({ action: "INTERFACE_KEYDOWN", key, ctrlKey });
   });
 
   const pointPositions = useMemo(() => {
@@ -75,7 +84,7 @@ function App() {
     return positions;
   }, [appState.sketch.sketchElements]);
 
-  const hoveringPoint = findOrCreatePointNear(appState, at);
+  const hoveringPoint = findPointNear(appState, at);
 
   const visuallySelectedSet = useMemo(() => {
     if (appState.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {

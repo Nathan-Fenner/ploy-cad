@@ -16,6 +16,8 @@ import { ID } from "../id";
 import { SketchToolState } from "./ToolState";
 
 export type AppAction =
+  | AppActionUndo
+  | AppActionPushToUndoStack
   | AppActionChangeView
   | AppActionBeginPanning
   | AppActionStopPanning
@@ -27,6 +29,16 @@ export type AppAction =
   | AppActionSketchCreatePoint
   | AppActionSketchCreateLine
   | AppActionSketchMovePoint;
+
+export type AppActionUndo = {
+  action: "UNDO";
+};
+
+export type AppActionPushToUndoStack = {
+  action: "PUSH_TO_UNDO_STACK";
+  debugName: string;
+  key: null | string;
+};
 
 export type AppActionChangeTool = {
   action: "STATE_CHANGE_TOOL";
@@ -63,6 +75,7 @@ export type AppActionInterfaceMouseMove = {
 export type AppActionInterfaceKeyDown = {
   action: "INTERFACE_KEYDOWN";
   key: string;
+  ctrlKey: boolean;
 };
 
 export type AppActionSketchCreatePoint = {
@@ -80,7 +93,7 @@ export type AppActionSketchCreateLine = {
 
 export type AppActionSketchMovePoint = {
   action: "SKETCH_MOVE_POINT";
-  point: LineID;
+  point: PointID;
   toPosition: XY;
 };
 
@@ -237,6 +250,40 @@ export function findAllGeometryPartiallyWithinBox(
   return inside;
 }
 
+export function findPointNear(
+  app: AppState,
+  near: XY,
+): { id: PointID | null; position: XY; created: boolean } {
+  const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
+
+  // TODO: This should be interactive, so that the user can select an alternative point if they want to.
+  let closest: { id: PointID; distance: number; position: XY } | null = null;
+  for (const element of app.sketch.sketchElements) {
+    if (element.sketchElement === "SketchElementPoint") {
+      const distanceToPoint = distance(near, element.position);
+      if (distanceToPoint > MAX_NEAR_DISTANCE) {
+        continue;
+      }
+      if (closest === null || distanceToPoint < closest.distance) {
+        closest = {
+          id: element.id,
+          distance: distanceToPoint,
+          position: element.position,
+        };
+      }
+    }
+  }
+  if (closest) {
+    return { id: closest.id, position: closest.position, created: false };
+  }
+
+  return {
+    id: null,
+    position: near,
+    created: true,
+  };
+}
+
 export function findOrCreatePointNear(
   app: AppState,
   near: XY,
@@ -265,26 +312,78 @@ export function findOrCreatePointNear(
   }
 
   const id = new PointID(ID.uniqueID());
+  console.info("findOrCreatePointNear");
   return {
-    app: applyAppAction(app, { action: "SKETCH_CREATE_POINT", at: near, id }),
+    app: applyAppAction(app, {
+      action: "SKETCH_CREATE_POINT",
+      at: near,
+      id,
+    }),
     id,
     position: near,
     created: true,
   };
 }
 
-export function applyAppActions(
+export function applyAppAction(
   app: AppState,
   ...actions: AppAction[]
 ): AppState {
   for (const action of actions) {
-    app = applyAppAction(app, action);
+    app = applyAppActionImplementation(app, action);
   }
   return app;
 }
 
-export function applyAppAction(app: AppState, action: AppAction): AppState {
+export function applyAppActionImplementation(
+  app: AppState,
+  action: AppAction,
+): AppState {
   switch (action.action) {
+    case "UNDO": {
+      if (app.undoState.undoStack.length > 0) {
+        const lastEntry =
+          app.undoState.undoStack[app.undoState.undoStack.length - 1];
+        return {
+          controls: {
+            panning: app.controls.panning,
+            activeSketchTool: { sketchTool: "TOOL_NONE" },
+          },
+          view: lastEntry.state.view,
+          sketch: lastEntry.state.sketch,
+          undoState: {
+            undoStack: app.undoState.undoStack.slice(
+              0,
+              app.undoState.undoStack.length - 1,
+            ),
+          },
+        };
+      }
+      return app;
+    }
+    case "PUSH_TO_UNDO_STACK": {
+      console.info("push", app.undoState.undoStack, action);
+      if (
+        action.key !== null &&
+        app.undoState.undoStack.length > 0 &&
+        app.undoState.undoStack[app.undoState.undoStack.length - 1].key ===
+          action.key
+      ) {
+        // Since this action already had an original state recorded, we don't need to
+        // write a new one.
+        return app;
+      }
+
+      return {
+        ...app,
+        undoState: {
+          undoStack: [
+            ...app.undoState.undoStack,
+            { state: app, key: action.key },
+          ],
+        },
+      };
+    }
     case "CHANGE_VIEW":
       return {
         ...app,
@@ -348,7 +447,7 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
           action.at,
         );
         app = newApp;
-        return applyAppActions(
+        return applyAppAction(
           app,
           {
             action: "SKETCH_CREATE_LINE",
@@ -452,6 +551,11 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
       return app;
     }
     case "INTERFACE_KEYDOWN": {
+      if (action.ctrlKey && action.key === "z") {
+        return applyAppAction(app, {
+          action: "UNDO",
+        });
+      }
       if (action.key === "Escape") {
         return applyAppAction(app, {
           action: "STATE_CHANGE_TOOL",
@@ -473,7 +577,13 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
       return app;
     }
     case "SKETCH_CREATE_POINT": {
+      console.info(action);
       // TODO: Verify that this ID does not already exist in the sketch.
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "create point",
+      });
       return {
         ...app,
         sketch: {
@@ -491,6 +601,11 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
     }
     case "SKETCH_CREATE_LINE": {
       // TODO: Verify that `endpointA` and `endpointB` already exist, and that `id` does not.
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "create line",
+      });
       return {
         ...app,
         sketch: {
@@ -508,6 +623,11 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
       };
     }
     case "SKETCH_MOVE_POINT": {
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: `move-point-${action.point}`,
+        debugName: "move point",
+      });
       return {
         ...app,
         sketch: {

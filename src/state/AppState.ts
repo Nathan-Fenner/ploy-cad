@@ -17,6 +17,21 @@ export type AppState = {
    * The sketch
    */
   sketch: SketchState;
+
+  undoState: UndoState;
+};
+
+export type UndoState = {
+  /**
+   * A stack of previous states to revert to.
+   */
+  undoStack: readonly {
+    state: {
+      view: View;
+      sketch: SketchState;
+    };
+    key: string | null;
+  }[];
 };
 
 export type SketchState = {
@@ -41,12 +56,16 @@ export type SketchElementID = PointID | LineID;
 /**
  * The ID of a point.
  */
-export class PointID extends ID {}
+export class PointID extends ID {
+  __point: void = undefined;
+}
 
 /**
  * The ID of a line.
  */
-export class LineID extends ID {}
+export class LineID extends ID {
+  __line: void = undefined;
+}
 
 export function isPointID(id: SketchElementID): id is PointID {
   return id instanceof PointID;
@@ -97,6 +116,9 @@ export const APP_STATE_INITIAL: AppState = {
         endpointB: new PointID("B"),
       },
     ],
+  },
+  undoState: {
+    undoStack: [],
   },
 };
 
