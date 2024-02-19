@@ -1,4 +1,5 @@
-import { ID } from "./id";
+import { ID } from "../id";
+import { SketchToolState } from "./ToolState";
 
 /**
  * The state of a window/application, including the view and currently-selected tools.
@@ -28,35 +29,6 @@ export type SketchState = {
 export type AppControls = {
   panning: boolean;
   activeSketchTool: SketchToolState;
-};
-
-export type SketchToolState =
-  | SketchToolNone
-  | SketchToolCreatePoint
-  | SketchToolCreateLine
-  | SketchToolCreateLineFromPoint
-  | SketchToolSelect;
-
-export type SketchToolNone = {
-  sketchTool: "TOOL_NONE";
-};
-
-export type SketchToolSelect = {
-  sketchTool: "TOOL_SELECT";
-  boxCorner: XY | null;
-  selected: ReadonlySet<SketchElementID>;
-};
-
-export type SketchToolCreatePoint = {
-  sketchTool: "TOOL_CREATE_POINT";
-};
-
-export type SketchToolCreateLine = {
-  sketchTool: "TOOL_CREATE_LINE";
-};
-export type SketchToolCreateLineFromPoint = {
-  sketchTool: "TOOL_CREATE_LINE_FROM_POINT";
-  fromPoint: PointID;
 };
 
 export type XY = { readonly x: number; readonly y: number };

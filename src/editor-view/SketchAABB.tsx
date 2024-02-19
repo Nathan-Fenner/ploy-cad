@@ -1,6 +1,6 @@
 import { memo } from "react";
 
-import { XY } from "../AppState";
+import { XY } from "../state/AppState";
 
 export type SketchPointProps = {
   endpointA: XY;

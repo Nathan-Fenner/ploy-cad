@@ -4,7 +4,7 @@ import {
   COLOR_SKETCH_PREVIEW,
   COLOR_SKETCH_SELECTED,
 } from "../palette/colors";
-import { XY } from "../AppState";
+import { XY } from "../state/AppState";
 
 type LineStyle = "sketch" | "preview";
 

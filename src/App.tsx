@@ -9,8 +9,8 @@ import {
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 import { EditorAxes } from "./editor-view/EditorAxes";
-import { APP_STATE_INITIAL, PointID, View, XY } from "./AppState";
-import { applyAppAction, findOrCreatePointNear } from "./AppAction";
+import { APP_STATE_INITIAL, PointID, View, XY } from "./state/AppState";
+import { applyAppAction, findOrCreatePointNear } from "./state/AppAction";
 import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
 import { SketchPoint } from "./editor-view/SketchPoint";
 import { ZOOM_SPEED } from "./constants";
@@ -76,6 +76,13 @@ function App() {
 
   const hoveringPoint = findOrCreatePointNear(appState, at);
 
+  const visuallySelectedSet = useMemo(() => {
+    if (appState.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
+      return appState.controls.activeSketchTool.selected;
+    }
+    return new Set();
+  }, [appState.controls.activeSketchTool]);
+
   return (
     <div style={{ position: "relative" }} className="editor">
       <Canvas
@@ -133,11 +140,7 @@ function App() {
                   endpointA={endpointA}
                   endpointB={endpointB}
                   lineStyle="sketch"
-                  selected={
-                    appState.controls.activeSketchTool.sketchTool ===
-                      "TOOL_SELECT" &&
-                    appState.controls.activeSketchTool.selected.has(element.id)
-                  }
+                  selected={visuallySelectedSet.has(element.id)}
                 />
               );
             }
@@ -150,11 +153,7 @@ function App() {
               <SketchPoint
                 key={element.id.toString()}
                 position={element.position}
-                selected={
-                  appState.controls.activeSketchTool.sketchTool ===
-                    "TOOL_SELECT" &&
-                  appState.controls.activeSketchTool.selected.has(element.id)
-                }
+                selected={visuallySelectedSet.has(element.id)}
               />
             );
           }

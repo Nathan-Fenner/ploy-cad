@@ -6,8 +6,8 @@ import {
   SketchToolState,
   View,
 } from "./AppState";
-import { distance } from "./geometry/vector";
-import { ID } from "./id";
+import { distance } from "../geometry/vector";
+import { ID } from "../id";
 
 export type AppAction =
   | AppActionChangeView

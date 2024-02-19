@@ -1,7 +1,7 @@
 import { memo, useContext } from "react";
 import { PixelSize } from "../canvas/Canvas";
 import { COLOR_SKETCH_MARKER_STROKE } from "../palette/colors";
-import { XY } from "../AppState";
+import { XY } from "../state/AppState";
 
 export type SketchMarkerProps = {
   position: XY;

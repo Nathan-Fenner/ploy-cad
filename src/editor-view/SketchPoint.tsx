@@ -5,7 +5,7 @@ import {
   COLOR_SKETCH_POINT_STROKE,
   COLOR_SKETCH_SELECTED,
 } from "../palette/colors";
-import { XY } from "../AppState";
+import { XY } from "../state/AppState";
 
 export type SketchPointProps = {
   position: XY;
