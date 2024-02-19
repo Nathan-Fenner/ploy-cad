@@ -8,6 +8,9 @@
   --sketch-line-stroke: rgb(218, 249, 255);
   --sketch-point-fill: transparent;
 
+  --sketch-marker-stroke: rgb(255, 117, 31);
+  --sketch-preview: rgb(255, 117, 31);
+
   --editor-text-color: white;
 }
 

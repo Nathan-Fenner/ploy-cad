@@ -1,13 +1,21 @@
-import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  Fragment,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 import { EditorAxes } from "./editor-view/EditorAxes";
 import { APP_STATE_INITIAL, PointID, View, XY } from "./AppState";
-import { applyAppAction } from "./AppAction";
+import { applyAppAction, findOrCreatePointNear } from "./AppAction";
 import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
 import { SketchPoint } from "./editor-view/SketchPoint";
 import { ZOOM_SPEED } from "./constants";
 import { SketchLine } from "./editor-view/SketchLine";
+import { SketchMarker } from "./editor-view/SketchMarker";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -118,6 +126,7 @@ function App() {
                   key={element.id.toString()}
                   endpointA={endpointA}
                   endpointB={endpointB}
+                  lineStyle="sketch"
                 />
               );
             }
@@ -132,6 +141,39 @@ function App() {
                 id={element.id}
                 position={element.position}
               />
+            );
+          }
+          return null;
+        })}
+        {appState.sketch.sketchElements.map((element) => {
+          const previewElements: JSX.Element[] = [];
+
+          const sketchTool = appState.controls.activeSketchTool;
+
+          if (
+            element.sketchElement === "SketchElementPoint" &&
+            sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT" &&
+            element.id === sketchTool.fromPoint
+          ) {
+            previewElements.push(
+              <SketchMarker key="from-marker" position={element.position} />,
+            );
+            const destination = findOrCreatePointNear(appState, at).position;
+            previewElements.push(
+              <SketchLine
+                key="line-preview"
+                endpointA={element.position}
+                endpointB={destination}
+                lineStyle="preview"
+              />,
+            );
+          }
+
+          if (previewElements.length > 0) {
+            return (
+              <Fragment key={`preview-${element.id}`}>
+                {previewElements}
+              </Fragment>
             );
           }
           return null;

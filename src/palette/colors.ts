@@ -6,6 +6,10 @@ export const COLOR_EDITOR_AXIS_STROKE_SECONDARY =
 export const COLOR_EDITOR_AXIS_STROKE_TERTIARY =
   "var(--editor-axis-stroke-tertiary)";
 
+export const COLOR_SKETCH_PREVIEW = "var(--sketch-preview)";
+
 export const COLOR_SKETCH_POINT_STROKE = "var(--sketch-point-stroke)";
 export const COLOR_SKETCH_POINT_FILL = "var(--sketch-point-fill)";
 export const COLOR_SKETCH_LINE_STROKE = "var(--sketch-line-stroke)";
+
+export const COLOR_SKETCH_MARKER_STROKE = "var(--sketch-marker-stroke)";

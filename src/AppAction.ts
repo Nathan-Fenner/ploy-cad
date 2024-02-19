@@ -55,11 +55,14 @@ export type AppActionSketchCreateLine = {
 
 const SELECT_NEAR_THRESHOLD = 0.015;
 
-function findOrCreatePointNear(app: AppState, near: XY): [AppState, PointID] {
+export function findOrCreatePointNear(
+  app: AppState,
+  near: XY,
+): { app: AppState; id: PointID; position: XY } {
   const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
 
   // TODO: This should be interactive, so that the user can select an alternative point if they want to.
-  let closest: { id: PointID; distance: number } | null = null;
+  let closest: { id: PointID; distance: number; position: XY } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementPoint") {
       const distanceToPoint = distance(near, element.position);
@@ -67,19 +70,24 @@ function findOrCreatePointNear(app: AppState, near: XY): [AppState, PointID] {
         continue;
       }
       if (closest === null || distanceToPoint < closest.distance) {
-        closest = { id: element.id, distance: distanceToPoint };
+        closest = {
+          id: element.id,
+          distance: distanceToPoint,
+          position: element.position,
+        };
       }
     }
   }
   if (closest) {
-    return [app, closest.id];
+    return { app, id: closest.id, position: closest.position };
   }
 
   const id = new PointID(ID.uniqueID());
-  return [
-    applyAppAction(app, { action: "SKETCH_CREATE_POINT", at: near, id }),
+  return {
+    app: applyAppAction(app, { action: "SKETCH_CREATE_POINT", at: near, id }),
     id,
-  ];
+    position: near,
+  };
 }
 
 export function applyAppActions(
@@ -142,7 +150,7 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
       }
       if (app.controls.activeSketchTool.sketchTool === "TOOL_CREATE_LINE") {
         // Find or create a point near the mouse.
-        const [newApp, id] = findOrCreatePointNear(app, action.at);
+        const { app: newApp, id } = findOrCreatePointNear(app, action.at);
         app = newApp;
         return applyAppAction(app, {
           action: "STATE_CHANGE_TOOL",
@@ -154,7 +162,10 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
         "TOOL_CREATE_LINE_FROM_POINT"
       ) {
         const fromPoint = app.controls.activeSketchTool.fromPoint;
-        const [newApp, toPoint] = findOrCreatePointNear(app, action.at);
+        const { app: newApp, id: toPoint } = findOrCreatePointNear(
+          app,
+          action.at,
+        );
         app = newApp;
         return applyAppActions(
           app,
