@@ -1,4 +1,4 @@
-import { AppState, PointID, View } from "./AppState";
+import { AppState, LineID, PointID, View } from "./AppState";
 import { ID } from "./id";
 
 export type AppAction =
@@ -7,7 +7,8 @@ export type AppAction =
   | AppActionStopPanning
   | AppActionInterfaceClick
   | AppActionInterfaceKeyDown
-  | AppActionSketchCreatePoint;
+  | AppActionSketchCreatePoint
+  | AppActionSketchCreateLine;
 
 export type AppActionChangeView = {
   action: "CHANGE_VIEW";
@@ -22,6 +23,7 @@ export type AppActionStopPanning = {
 };
 
 export type XY = { readonly x: number; readonly y: number };
+
 export type AppActionInterfaceClick = {
   action: "INTERFACE_CLICK";
   at: XY;
@@ -36,6 +38,24 @@ export type AppActionSketchCreatePoint = {
   id: PointID;
   at: XY;
 };
+
+export type AppActionSketchCreateLine = {
+  action: "SKETCH_CREATE_LINE";
+  id: LineID;
+  endpointA: PointID;
+  endpointB: PointID;
+};
+
+function findOrCreatePointNear(app: AppState, near: XY): [AppState, PointID] {
+  // TODO: This should be interactive, so that the user can select an alternative point if they want to.
+
+  // TODO: Select an existing point.
+  const id = new PointID(ID.uniqueID());
+  return [
+    applyAppAction(app, { action: "SKETCH_CREATE_POINT", at: near, id }),
+    id,
+  ];
+}
 
 export function applyAppAction(app: AppState, action: AppAction): AppState {
   switch (action.action) {
@@ -76,6 +96,35 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
           at: action.at,
         });
       }
+      if (app.controls.activeSketchTool.sketchTool === "TOOL_CREATE_LINE") {
+        // Find or create a point near the mouse.
+        const [newApp, id] = findOrCreatePointNear(app, action.at);
+        app = newApp;
+        return {
+          ...app,
+          controls: {
+            ...app.controls,
+            activeSketchTool: {
+              sketchTool: "TOOL_CREATE_LINE_FROM_POINT",
+              fromPoint: id,
+            },
+          },
+        };
+      }
+      if (
+        app.controls.activeSketchTool.sketchTool ===
+        "TOOL_CREATE_LINE_FROM_POINT"
+      ) {
+        const fromPoint = app.controls.activeSketchTool.fromPoint;
+        const [newApp, toPoint] = findOrCreatePointNear(app, action.at);
+        app = newApp;
+        return applyAppAction(app, {
+          action: "SKETCH_CREATE_LINE",
+          id: new LineID(ID.uniqueID()),
+          endpointA: fromPoint,
+          endpointB: toPoint,
+        });
+      }
       return app;
     }
     case "INTERFACE_KEYDOWN": {
@@ -97,6 +146,15 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
           },
         };
       }
+      if (action.key === "l") {
+        return {
+          ...app,
+          controls: {
+            ...app.controls,
+            activeSketchTool: { sketchTool: "TOOL_CREATE_LINE" },
+          },
+        };
+      }
       return app;
     }
     case "SKETCH_CREATE_POINT": {
@@ -111,6 +169,24 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
               sketchElement: "SketchElementPoint",
               id: action.id,
               position: action.at,
+            },
+          ],
+        },
+      };
+    }
+    case "SKETCH_CREATE_LINE": {
+      // TODO: Verify that `endpointA` and `endpointB` already exist, and that `id` does not.
+      return {
+        ...app,
+        sketch: {
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementLine",
+              id: action.id,
+              endpointA: action.endpointA,
+              endpointB: action.endpointB,
             },
           ],
         },

@@ -30,7 +30,11 @@ export type AppControls = {
   activeSketchTool: SketchToolState;
 };
 
-export type SketchToolState = SketchToolNone | SketchToolCreatePoint;
+export type SketchToolState =
+  | SketchToolNone
+  | SketchToolCreatePoint
+  | SketchToolCreateLine
+  | SketchToolCreateLineFromPoint;
 
 export type SketchToolNone = {
   sketchTool: "TOOL_NONE";
@@ -38,6 +42,14 @@ export type SketchToolNone = {
 
 export type SketchToolCreatePoint = {
   sketchTool: "TOOL_CREATE_POINT";
+};
+
+export type SketchToolCreateLine = {
+  sketchTool: "TOOL_CREATE_LINE";
+};
+export type SketchToolCreateLineFromPoint = {
+  sketchTool: "TOOL_CREATE_LINE_FROM_POINT";
+  fromPoint: PointID;
 };
 
 export type XY = { readonly x: number; readonly y: number };
