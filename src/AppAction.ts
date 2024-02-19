@@ -58,7 +58,7 @@ const SELECT_NEAR_THRESHOLD = 0.015;
 export function findOrCreatePointNear(
   app: AppState,
   near: XY,
-): { app: AppState; id: PointID; position: XY } {
+): { app: AppState; id: PointID; position: XY; created: boolean } {
   const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
 
   // TODO: This should be interactive, so that the user can select an alternative point if they want to.
@@ -79,7 +79,7 @@ export function findOrCreatePointNear(
     }
   }
   if (closest) {
-    return { app, id: closest.id, position: closest.position };
+    return { app, id: closest.id, position: closest.position, created: true };
   }
 
   const id = new PointID(ID.uniqueID());
@@ -87,6 +87,7 @@ export function findOrCreatePointNear(
     app: applyAppAction(app, { action: "SKETCH_CREATE_POINT", at: near, id }),
     id,
     position: near,
+    created: false,
   };
 }
 

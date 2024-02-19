@@ -73,6 +73,8 @@ function App() {
     return positions;
   }, [appState.sketch.sketchElements]);
 
+  const hoveringPoint = findOrCreatePointNear(appState, at);
+
   return (
     <div style={{ position: "relative" }} className="editor">
       <Canvas
@@ -178,6 +180,18 @@ function App() {
           }
           return null;
         })}
+
+        {(() => {
+          const sketchTool = appState.controls.activeSketchTool;
+          if (
+            sketchTool.sketchTool === "TOOL_CREATE_POINT" ||
+            sketchTool.sketchTool === "TOOL_CREATE_LINE" ||
+            sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT"
+          ) {
+            return <SketchMarker position={hoveringPoint.position} />;
+          }
+          return null;
+        })()}
       </Canvas>
 
       <div style={{ position: "fixed", left: 20, bottom: 20 }}>
