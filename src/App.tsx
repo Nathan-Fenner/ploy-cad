@@ -17,6 +17,7 @@ import { ZOOM_SPEED } from "./constants";
 import { SketchLine } from "./editor-view/SketchLine";
 import { SketchMarker } from "./editor-view/SketchMarker";
 import { SketchAABB } from "./editor-view/SketchAABB";
+import { SketchToolState } from "./state/ToolState";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -224,10 +225,34 @@ function App() {
       </Canvas>
 
       <div style={{ position: "fixed", left: 20, bottom: 20 }}>
-        {appState.controls.activeSketchTool.sketchTool}
+        <DebugToolState tool={appState.controls.activeSketchTool} />
       </div>
     </div>
   );
+}
+
+function DebugToolState({ tool }: { tool: SketchToolState }) {
+  return (
+    <div style={{ display: "flex", gap: 20 }}>
+      <DebugToolStateLabel tool={tool} />
+      <DebugToolStateExtra tool={tool} />
+    </div>
+  );
+}
+
+function DebugToolStateLabel({ tool }: { tool: SketchToolState }) {
+  return <span>{tool.sketchTool}</span>;
+}
+function DebugToolStateExtra({ tool }: { tool: SketchToolState }) {
+  if (tool.sketchTool === "TOOL_SELECT") {
+    return (
+      <>
+        <span>{tool.boxCorner !== null ? "[b]" : null}</span>
+        <span>{[...tool.selected].join(", ")}</span>
+      </>
+    );
+  }
+  return null;
 }
 
 export default App;

@@ -48,6 +48,14 @@ export class PointID extends ID {}
  */
 export class LineID extends ID {}
 
+export function isPointID(id: SketchElementID): id is PointID {
+  return id instanceof PointID;
+}
+
+export function isLineID(id: SketchElementID): id is LineID {
+  return id instanceof LineID;
+}
+
 /**
  * A movable point in the sketch.
  */

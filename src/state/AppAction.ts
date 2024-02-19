@@ -5,8 +5,13 @@ import {
   SketchElementID,
   View,
   getPointPosition,
+  isPointID,
 } from "./AppState";
-import { distance, pointAdd } from "../geometry/vector";
+import {
+  distance,
+  distancePointToLineSegment,
+  pointAdd,
+} from "../geometry/vector";
 import { ID } from "../id";
 import { SketchToolState } from "./ToolState";
 
@@ -86,24 +91,44 @@ export function findGeometryNear(
   near: XY,
 ): { id: SketchElementID } | null {
   // TODO: This should be interactive, so that the user can select an alternative point if they want to.
+
+  // (1/2) First, find the closest point, if any.
   const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
-  let closest: { id: PointID; distance: number } | null = null;
+  let closestPoint: { id: PointID; distance: number } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementPoint") {
       const distanceToPoint = distance(near, element.position);
       if (distanceToPoint > MAX_NEAR_DISTANCE) {
         continue;
       }
-      if (closest === null || closest.distance > distanceToPoint) {
-        closest = { id: element.id, distance: distanceToPoint };
+      if (closestPoint === null || closestPoint.distance > distanceToPoint) {
+        closestPoint = { id: element.id, distance: distanceToPoint };
       }
     }
   }
-  if (closest !== null) {
-    return { id: closest.id };
+  if (closestPoint !== null) {
+    return { id: closestPoint.id };
   }
 
-  // TODO: Find the closest line segment.
+  // (2/2) Find the closest line segment.
+  let closestLine: { id: LineID; distance: number } | null = null;
+  for (const element of app.sketch.sketchElements) {
+    if (element.sketchElement === "SketchElementLine") {
+      const distanceToLine = distancePointToLineSegment(near, {
+        a: getPointPosition(app, element.endpointA),
+        b: getPointPosition(app, element.endpointB),
+      });
+      if (distanceToLine > MAX_NEAR_DISTANCE) {
+        continue;
+      }
+      if (closestLine === null || closestLine.distance > distanceToLine) {
+        closestLine = { id: element.id, distance: distanceToLine };
+      }
+    }
+  }
+  if (closestLine !== null) {
+    return { id: closestLine.id };
+  }
 
   return null;
 }
@@ -342,10 +367,10 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
         tool.sketchTool === "TOOL_SELECT"
       ) {
         // If we clicked near a point, select it.
-        const nearbyPoint = findOrCreatePointNear(app, action.at);
-        // TODO: Select other geometry types too
-        if (nearbyPoint.created) {
-          // Nothing to select.
+        const nearbyGeometry = findGeometryNear(app, action.at);
+
+        if (nearbyGeometry === null) {
+          // Nothing to select at the click site -- allow the user to select a box.
           return applyAppAction(app, {
             action: "STATE_CHANGE_TOOL",
             newTool: {
@@ -355,12 +380,23 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
                 tool.sketchTool === "TOOL_SELECT" ? tool.selected : new Set(),
             },
           });
-        } else {
+        } else if (isPointID(nearbyGeometry.id)) {
+          // The user clicked on a point -- allow them to move it.
           return applyAppAction(app, {
             action: "STATE_CHANGE_TOOL",
             newTool: {
               sketchTool: "TOOL_DRAG_POINT",
-              point: nearbyPoint.id,
+              point: nearbyGeometry.id,
+            },
+          });
+        } else {
+          // The user clicked on other geometry -- select it.
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: {
+              sketchTool: "TOOL_SELECT",
+              boxCorner: null,
+              selected: new Set([nearbyGeometry.id]),
             },
           });
         }
