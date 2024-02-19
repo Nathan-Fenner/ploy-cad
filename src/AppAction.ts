@@ -1,14 +1,21 @@
-import { AppState, LineID, PointID, View } from "./AppState";
+import { AppState, LineID, PointID, SketchToolState, View } from "./AppState";
+import { distance } from "./geometry/vector";
 import { ID } from "./id";
 
 export type AppAction =
   | AppActionChangeView
   | AppActionBeginPanning
   | AppActionStopPanning
+  | AppActionChangeTool
   | AppActionInterfaceClick
   | AppActionInterfaceKeyDown
   | AppActionSketchCreatePoint
   | AppActionSketchCreateLine;
+
+export type AppActionChangeTool = {
+  action: "STATE_CHANGE_TOOL";
+  newTool: SketchToolState;
+};
 
 export type AppActionChangeView = {
   action: "CHANGE_VIEW";
@@ -46,15 +53,43 @@ export type AppActionSketchCreateLine = {
   endpointB: PointID;
 };
 
-function findOrCreatePointNear(app: AppState, near: XY): [AppState, PointID] {
-  // TODO: This should be interactive, so that the user can select an alternative point if they want to.
+const SELECT_NEAR_THRESHOLD = 0.015;
 
-  // TODO: Select an existing point.
+function findOrCreatePointNear(app: AppState, near: XY): [AppState, PointID] {
+  const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
+
+  // TODO: This should be interactive, so that the user can select an alternative point if they want to.
+  let closest: { id: PointID; distance: number } | null = null;
+  for (const element of app.sketch.sketchElements) {
+    if (element.sketchElement === "SketchElementPoint") {
+      const distanceToPoint = distance(near, element.position);
+      if (distanceToPoint > MAX_NEAR_DISTANCE) {
+        continue;
+      }
+      if (closest === null || distanceToPoint < closest.distance) {
+        closest = { id: element.id, distance: distanceToPoint };
+      }
+    }
+  }
+  if (closest) {
+    return [app, closest.id];
+  }
+
   const id = new PointID(ID.uniqueID());
   return [
     applyAppAction(app, { action: "SKETCH_CREATE_POINT", at: near, id }),
     id,
   ];
+}
+
+export function applyAppActions(
+  app: AppState,
+  ...actions: AppAction[]
+): AppState {
+  for (const action of actions) {
+    app = applyAppAction(app, action);
+  }
+  return app;
 }
 
 export function applyAppAction(app: AppState, action: AppAction): AppState {
@@ -86,6 +121,15 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
           panning: false,
         },
       };
+    case "STATE_CHANGE_TOOL": {
+      return {
+        ...app,
+        controls: {
+          ...app.controls,
+          activeSketchTool: action.newTool,
+        },
+      };
+    }
     case "INTERFACE_CLICK": {
       if (app.controls.activeSketchTool.sketchTool === "TOOL_CREATE_POINT") {
         // Create a new point.
@@ -100,16 +144,10 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
         // Find or create a point near the mouse.
         const [newApp, id] = findOrCreatePointNear(app, action.at);
         app = newApp;
-        return {
-          ...app,
-          controls: {
-            ...app.controls,
-            activeSketchTool: {
-              sketchTool: "TOOL_CREATE_LINE_FROM_POINT",
-              fromPoint: id,
-            },
-          },
-        };
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: { sketchTool: "TOOL_CREATE_LINE_FROM_POINT", fromPoint: id },
+        });
       }
       if (
         app.controls.activeSketchTool.sketchTool ===
@@ -118,42 +156,40 @@ export function applyAppAction(app: AppState, action: AppAction): AppState {
         const fromPoint = app.controls.activeSketchTool.fromPoint;
         const [newApp, toPoint] = findOrCreatePointNear(app, action.at);
         app = newApp;
-        return applyAppAction(app, {
-          action: "SKETCH_CREATE_LINE",
-          id: new LineID(ID.uniqueID()),
-          endpointA: fromPoint,
-          endpointB: toPoint,
-        });
+        return applyAppActions(
+          app,
+          {
+            action: "SKETCH_CREATE_LINE",
+            id: new LineID(ID.uniqueID()),
+            endpointA: fromPoint,
+            endpointB: toPoint,
+          },
+          {
+            action: "STATE_CHANGE_TOOL",
+            newTool: { sketchTool: "TOOL_NONE" },
+          },
+        );
       }
       return app;
     }
     case "INTERFACE_KEYDOWN": {
       if (action.key === "Escape") {
-        return {
-          ...app,
-          controls: {
-            ...app.controls,
-            activeSketchTool: { sketchTool: "TOOL_NONE" },
-          },
-        };
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: { sketchTool: "TOOL_NONE" },
+        });
       }
       if (action.key === "p") {
-        return {
-          ...app,
-          controls: {
-            ...app.controls,
-            activeSketchTool: { sketchTool: "TOOL_CREATE_POINT" },
-          },
-        };
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: { sketchTool: "TOOL_CREATE_POINT" },
+        });
       }
       if (action.key === "l") {
-        return {
-          ...app,
-          controls: {
-            ...app.controls,
-            activeSketchTool: { sketchTool: "TOOL_CREATE_LINE" },
-          },
-        };
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: { sketchTool: "TOOL_CREATE_LINE" },
+        });
       }
       return app;
     }
