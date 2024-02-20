@@ -1,7 +1,7 @@
 import { Fragment, useMemo } from "react";
 
 import { EditorAxes } from "../editor-view/EditorAxes";
-import { AppState, PointID, XY } from "../state/AppState";
+import { AppState, XY, getPointPosition } from "../state/AppState";
 import { findOrCreatePointNear, findPointNear } from "../state/AppAction";
 import { SketchPoint } from "../editor-view/SketchPoint";
 import { SketchLine } from "../editor-view/SketchLine";
@@ -15,16 +15,6 @@ export function SketchView({
   appState: AppState;
   cursorAt: XY;
 }) {
-  const pointPositions = useMemo(() => {
-    const positions = new Map<PointID, XY>();
-    for (const element of appState.sketch.sketchElements) {
-      if (element.sketchElement === "SketchElementPoint") {
-        positions.set(element.id, element.position);
-      }
-    }
-    return positions;
-  }, [appState.sketch.sketchElements]);
-
   const hoveringPoint = findPointNear(appState, cursorAt);
 
   const visuallySelectedSet = useMemo(() => {
@@ -42,19 +32,18 @@ export function SketchView({
       <EditorAxes />
       {appState.sketch.sketchElements.map((element) => {
         if (element.sketchElement === "SketchElementLine") {
-          const endpointA = pointPositions.get(element.endpointA);
-          const endpointB = pointPositions.get(element.endpointB);
-          if (endpointA !== undefined && endpointB !== undefined) {
-            return (
-              <SketchLine
-                key={element.id.toString()}
-                endpointA={endpointA}
-                endpointB={endpointB}
-                lineStyle="sketch"
-                selected={visuallySelectedSet.has(element.id)}
-              />
-            );
-          }
+          const endpointA = getPointPosition(appState, element.endpointA);
+          const endpointB = getPointPosition(appState, element.endpointB);
+
+          return (
+            <SketchLine
+              key={element.id.toString()}
+              endpointA={endpointA}
+              endpointB={endpointB}
+              lineStyle="sketch"
+              selected={visuallySelectedSet.has(element.id)}
+            />
+          );
         }
         return null;
       })}
