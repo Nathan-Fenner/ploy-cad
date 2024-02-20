@@ -1,27 +1,13 @@
-import {
-  Fragment,
-  useLayoutEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useLayoutEffect, useReducer, useRef, useState } from "react";
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
-import { EditorAxes } from "./editor-view/EditorAxes";
-import { APP_STATE_INITIAL, PointID, View, XY } from "./state/AppState";
-import {
-  applyAppActionImplementation,
-  findOrCreatePointNear,
-  findPointNear,
-} from "./state/AppAction";
+
+import { APP_STATE_INITIAL, View, XY } from "./state/AppState";
+import { applyAppActionImplementation } from "./state/AppAction";
 import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
-import { SketchPoint } from "./editor-view/SketchPoint";
 import { ZOOM_SPEED } from "./constants";
-import { SketchLine } from "./editor-view/SketchLine";
-import { SketchMarker } from "./editor-view/SketchMarker";
-import { SketchAABB } from "./editor-view/SketchAABB";
 import { SketchToolState } from "./state/ToolState";
+import { SketchView } from "./editor-view/SketchView";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -74,28 +60,6 @@ function App() {
     dispatch({ action: "INTERFACE_KEYDOWN", key, ctrlKey });
   });
 
-  const pointPositions = useMemo(() => {
-    const positions = new Map<PointID, XY>();
-    for (const element of appState.sketch.sketchElements) {
-      if (element.sketchElement === "SketchElementPoint") {
-        positions.set(element.id, element.position);
-      }
-    }
-    return positions;
-  }, [appState.sketch.sketchElements]);
-
-  const hoveringPoint = findPointNear(appState, at);
-
-  const visuallySelectedSet = useMemo(() => {
-    if (appState.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
-      return appState.controls.activeSketchTool.selected;
-    }
-    if (appState.controls.activeSketchTool.sketchTool === "TOOL_DRAG_POINT") {
-      return new Set([appState.controls.activeSketchTool.point]);
-    }
-    return new Set();
-  }, [appState.controls.activeSketchTool]);
-
   return (
     <div style={{ position: "relative" }} className="editor">
       <Canvas
@@ -142,95 +106,7 @@ function App() {
           }
         }}
       >
-        <EditorAxes />
-        {appState.sketch.sketchElements.map((element) => {
-          if (element.sketchElement === "SketchElementLine") {
-            const endpointA = pointPositions.get(element.endpointA);
-            const endpointB = pointPositions.get(element.endpointB);
-            if (endpointA !== undefined && endpointB !== undefined) {
-              return (
-                <SketchLine
-                  key={element.id.toString()}
-                  endpointA={endpointA}
-                  endpointB={endpointB}
-                  lineStyle="sketch"
-                  selected={visuallySelectedSet.has(element.id)}
-                />
-              );
-            }
-          }
-          return null;
-        })}
-        {appState.sketch.sketchElements.map((element) => {
-          if (element.sketchElement === "SketchElementPoint") {
-            return (
-              <SketchPoint
-                key={element.id.toString()}
-                position={element.position}
-                selected={visuallySelectedSet.has(element.id)}
-              />
-            );
-          }
-          return null;
-        })}
-        {appState.sketch.sketchElements.map((element) => {
-          const previewElements: JSX.Element[] = [];
-
-          const sketchTool = appState.controls.activeSketchTool;
-
-          if (
-            element.sketchElement === "SketchElementPoint" &&
-            sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT" &&
-            element.id === sketchTool.fromPoint
-          ) {
-            previewElements.push(
-              <SketchMarker key="from-marker" position={element.position} />,
-            );
-            const destination = findOrCreatePointNear(appState, at).position;
-            previewElements.push(
-              <SketchLine
-                key="line-preview"
-                endpointA={element.position}
-                endpointB={destination}
-                lineStyle="preview"
-              />,
-            );
-          }
-
-          if (previewElements.length > 0) {
-            return (
-              <Fragment key={`preview-${element.id}`}>
-                {previewElements}
-              </Fragment>
-            );
-          }
-          return null;
-        })}
-
-        {(() => {
-          const sketchTool = appState.controls.activeSketchTool;
-          if (
-            sketchTool.sketchTool === "TOOL_CREATE_POINT" ||
-            sketchTool.sketchTool === "TOOL_CREATE_LINE" ||
-            sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT"
-          ) {
-            return <SketchMarker position={hoveringPoint.position} />;
-          }
-
-          if (
-            sketchTool.sketchTool === "TOOL_SELECT" &&
-            sketchTool.boxCorner !== null
-          ) {
-            return (
-              <SketchAABB
-                endpointA={sketchTool.boxCorner}
-                endpointB={at}
-                dashed={at.x < sketchTool.boxCorner.x}
-              />
-            );
-          }
-          return null;
-        })()}
+        <SketchView appState={appState} cursorAt={at} />
       </Canvas>
 
       <div style={{ position: "fixed", left: 20, bottom: 20 }}>

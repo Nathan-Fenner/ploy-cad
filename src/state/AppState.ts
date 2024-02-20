@@ -50,8 +50,11 @@ export type XY = { readonly x: number; readonly y: number };
 
 export type View = { readonly center: XY; readonly size: number };
 
-export type SketchElement = SketchElementPoint | SketchElementLine;
-export type SketchElementID = PointID | LineID;
+export type SketchElement =
+  | SketchElementPoint
+  | SketchElementLine
+  | SketchElementConstraintFixed;
+export type SketchElementID = PointID | LineID | ConstraintFixedID;
 
 /**
  * The ID of a point.
@@ -67,12 +70,26 @@ export class LineID extends ID {
   __line: void = undefined;
 }
 
+export class ConstraintID extends ID {
+  __constraint: void = undefined;
+}
+
 export function isPointID(id: SketchElementID): id is PointID {
   return id instanceof PointID;
 }
 
 export function isLineID(id: SketchElementID): id is LineID {
   return id instanceof LineID;
+}
+
+export function isConstraintFixedID(
+  id: SketchElementID,
+): id is ConstraintFixedID {
+  return id instanceof ConstraintFixedID;
+}
+
+export class ConstraintFixedID extends ID {
+  __constraintFixed: void = undefined;
 }
 
 /**
@@ -134,3 +151,10 @@ export function getPointPosition(app: AppState, point: PointID): XY {
   }
   throw new Error(`the application has no sketch element point '${point}'`);
 }
+
+export type SketchElementConstraintFixed = {
+  sketchElement: "SketchElementConstraintFixed";
+  id: ConstraintFixedID;
+  point: PointID;
+  position: XY;
+};
