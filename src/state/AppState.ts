@@ -56,6 +56,14 @@ export type SketchElement =
   | SketchElementConstraintFixed;
 export type SketchElementID = PointID | LineID | ConstraintFixedID;
 
+export type TypeCorrespondingToSketchElementID<ID> =
+  TypeCorrespondingToSketchElementIDHelper<ID, SketchElement>;
+type TypeCorrespondingToSketchElementIDHelper<ID, T> = T extends {
+  id: ID;
+}
+  ? T
+  : never;
+
 /**
  * The ID of a point.
  */
@@ -111,6 +119,52 @@ export type SketchElementLine = {
   endpointB: PointID;
 };
 
+const getElementCacheMap = new WeakMap<
+  SketchState,
+  ReadonlyMap<SketchElementID, SketchElement>
+>();
+function getElementCache(
+  sketch: SketchState,
+): ReadonlyMap<SketchElementID, SketchElement> {
+  if (getElementCacheMap.has(sketch)) {
+    return getElementCacheMap.get(sketch)!;
+  }
+  const newMap = new Map();
+  for (const element of sketch.sketchElements) {
+    newMap.set(element.id, element);
+  }
+  getElementCacheMap.set(sketch, newMap);
+  return newMap;
+}
+
+/**
+ * Returns the element with the corresponding ID in this app.
+ * This function is cached, so it is efficient to call it repeatedly with
+ * the same or different IDs, provided that they belong to the same underlying app.
+ */
+export function getElement<ID extends SketchElementID>(
+  app: AppState,
+  id: ID,
+): TypeCorrespondingToSketchElementID<ID> {
+  const cache = getElementCache(app.sketch);
+  if (!cache.has(id)) {
+    throw new Error(`the application has no sketch element '${id}'`);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return cache.get(id)! as any;
+}
+
+export function getPointPosition(app: AppState, point: PointID): XY {
+  return getElement(app, point).position;
+}
+
+export type SketchElementConstraintFixed = {
+  sketchElement: "SketchElementConstraintFixed";
+  id: ConstraintFixedID;
+  point: PointID;
+  position: XY;
+};
+
 export const APP_STATE_INITIAL: AppState = {
   view: { center: { x: 0, y: 0 }, size: 200 },
   controls: { panning: false, activeSketchTool: { sketchTool: "TOOL_NONE" } },
@@ -132,29 +186,15 @@ export const APP_STATE_INITIAL: AppState = {
         endpointA: new PointID("A"),
         endpointB: new PointID("B"),
       },
+      {
+        sketchElement: "SketchElementConstraintFixed",
+        id: new ConstraintFixedID("C_A"),
+        point: new PointID("A"),
+        position: { x: 40, y: 40 },
+      },
     ],
   },
   undoState: {
     undoStack: [],
   },
-};
-
-export function getPointPosition(app: AppState, point: PointID): XY {
-  // TODO: Cache this, so that it's faster.
-  for (const element of app.sketch.sketchElements) {
-    if (
-      element.sketchElement === "SketchElementPoint" &&
-      element.id === point
-    ) {
-      return element.position;
-    }
-  }
-  throw new Error(`the application has no sketch element point '${point}'`);
-}
-
-export type SketchElementConstraintFixed = {
-  sketchElement: "SketchElementConstraintFixed";
-  id: ConstraintFixedID;
-  point: PointID;
-  position: XY;
 };

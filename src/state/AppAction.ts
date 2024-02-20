@@ -4,7 +4,10 @@ import {
   PointID,
   SketchElementID,
   View,
+  getElement,
   getPointPosition,
+  isConstraintFixedID,
+  isLineID,
   isPointID,
 } from "./AppState";
 import {
@@ -14,6 +17,7 @@ import {
 } from "../geometry/vector";
 import { ID } from "../id";
 import { SketchToolState } from "./ToolState";
+import { applyConstraint } from "./constrain";
 
 export type AppAction =
   | AppActionUndo
@@ -30,6 +34,8 @@ export type AppAction =
   | AppActionSketchCreateLine
   | AppActionSketchMovePoint
   | AppActionSketchDelete;
+
+applyConstraint;
 
 export type AppActionUndo = {
   action: "UNDO";
@@ -368,7 +374,6 @@ export function applyAppActionImplementation(
       return app;
     }
     case "PUSH_TO_UNDO_STACK": {
-      console.info("push", app.undoState.undoStack, action);
       if (
         action.key !== null &&
         app.undoState.undoStack.length > 0 &&
@@ -651,7 +656,7 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: {
+        sketch: applyConstraint({
           ...app.sketch,
           sketchElements: app.sketch.sketchElements.map((sketchElement) => {
             if (
@@ -666,7 +671,7 @@ export function applyAppActionImplementation(
               return sketchElement;
             }
           }),
-        },
+        }),
       };
     }
     case "SKETCH_DELETE": {
@@ -676,24 +681,33 @@ export function applyAppActionImplementation(
         debugName: "delete",
       });
       const toDelete = new Set(action.toDelete);
+
+      const isDeleted = (id: SketchElementID): boolean => {
+        if (toDelete.has(id)) {
+          return true;
+        }
+        if (isLineID(id)) {
+          for (const endpoint of [
+            getElement(app, id).endpointA,
+            getElement(app, id).endpointB,
+          ]) {
+            if (isDeleted(endpoint)) {
+              return true;
+            }
+          }
+        }
+        if (isConstraintFixedID(id)) {
+          return isDeleted(getElement(app, id).point);
+        }
+        return false;
+      };
+
       return {
         ...app,
         sketch: {
           ...app.sketch,
           sketchElements: app.sketch.sketchElements.filter((sketchElement) => {
-            if (toDelete.has(sketchElement.id)) {
-              return false;
-            }
-            if (sketchElement.sketchElement === "SketchElementLine") {
-              if (
-                toDelete.has(sketchElement.endpointA) ||
-                toDelete.has(sketchElement.endpointB)
-              ) {
-                return false;
-              }
-            }
-
-            return true;
+            return !isDeleted(sketchElement.id);
           }),
         },
       };

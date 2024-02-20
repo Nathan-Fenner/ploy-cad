@@ -12,6 +12,8 @@
   --sketch-preview: rgb(255, 117, 31);
   --sketch-selected: rgb(31, 109, 255);
 
+  --sketch-constraint: rgb(13, 237, 65);
+
   --editor-text-color: white;
 }
 

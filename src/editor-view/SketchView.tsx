@@ -60,6 +60,21 @@ export function SketchView({
         return null;
       })}
       {appState.sketch.sketchElements.map((element) => {
+        if (element.sketchElement === "SketchElementConstraintFixed") {
+          return (
+            <SketchMarker
+              key={element.id.toString()}
+              position={element.position}
+              variety="fixed"
+            />
+          );
+        }
+        return null;
+      })}
+
+      {/* TOOLS AND PREVIEWS */}
+
+      {appState.sketch.sketchElements.map((element) => {
         const previewElements: JSX.Element[] = [];
 
         const sketchTool = appState.controls.activeSketchTool;
