@@ -89,20 +89,20 @@ function App() {
         onZoom={(zoomCenter, zoomSteps) => {
           setView(zoomTo(view, zoomCenter, zoomSteps * ZOOM_SPEED));
         }}
-        onMouseUp={(buttons, _at) => {
+        onMouseUp={(buttons, _at, { shiftKey }) => {
           if ((buttons & 4) === 0 && panning) {
             dispatch({ action: "STOP_PANNING" });
           }
           if (!(buttons & 1)) {
-            dispatch({ action: "INTERFACE_CLICK_RELEASE", at });
+            dispatch({ action: "INTERFACE_CLICK_RELEASE", at, shiftKey });
           }
         }}
-        onMouseDown={(buttons, _at) => {
+        onMouseDown={(buttons, _at, { shiftKey }) => {
           if ((buttons & 4) !== 0 && !panning) {
             dispatch({ action: "BEGIN_PANNING" });
           }
           if (buttons === 1) {
-            dispatch({ action: "INTERFACE_CLICK", at });
+            dispatch({ action: "INTERFACE_CLICK", at, shiftKey });
           }
         }}
       >

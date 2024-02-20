@@ -41,8 +41,16 @@ type CanvasProps = {
    */
   onZoom?: (zoomCenter: XY, zoomSteps: number) => void;
 
-  onMouseDown?: (buttons: number, at: XY) => void;
-  onMouseUp?: (buttons: number, at: XY) => void;
+  onMouseDown?: (
+    buttons: number,
+    at: XY,
+    modifiers: { shiftKey: boolean },
+  ) => void;
+  onMouseUp?: (
+    buttons: number,
+    at: XY,
+    modifiers: { shiftKey: boolean },
+  ) => void;
 };
 
 function screenToMouse(
@@ -140,12 +148,16 @@ export function Canvas({
         }}
         onMouseDown={(e) => {
           if (onMouseDown) {
-            onMouseDown(e.buttons, screenToMouse(e, e.currentTarget));
+            onMouseDown(e.buttons, screenToMouse(e, e.currentTarget), {
+              shiftKey: e.shiftKey,
+            });
           }
         }}
         onMouseUp={(e) => {
           if (onMouseUp) {
-            onMouseUp(e.buttons, screenToMouse(e, e.currentTarget));
+            onMouseUp(e.buttons, screenToMouse(e, e.currentTarget), {
+              shiftKey: e.shiftKey,
+            });
           }
         }}
       >

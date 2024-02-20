@@ -71,10 +71,12 @@ export type XY = { readonly x: number; readonly y: number };
 export type AppActionInterfaceClick = {
   action: "INTERFACE_CLICK";
   at: XY;
+  shiftKey: boolean;
 };
 export type AppActionInterfaceClickRelease = {
   action: "INTERFACE_CLICK_RELEASE";
   at: XY;
+  shiftKey: boolean;
 };
 export type AppActionInterfaceMouseMove = {
   action: "INTERFACE_MOUSE_MOVE";
@@ -487,6 +489,21 @@ export function applyAppActionImplementation(
         // If we clicked near a point, select it.
         const nearbyGeometry = findGeometryNear(app, action.at);
 
+        if (action.shiftKey && nearbyGeometry !== null) {
+          // Select the new geometry, in addition to anything currently selected.
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: {
+              sketchTool: "TOOL_SELECT",
+              boxCorner: null,
+              selected: new Set([
+                ...(tool.sketchTool === "TOOL_SELECT" ? tool.selected : []),
+                nearbyGeometry.id,
+              ]),
+            },
+          });
+        }
+
         if (nearbyGeometry === null) {
           // Nothing to select at the click site -- allow the user to select a box.
           return applyAppAction(app, {
@@ -522,6 +539,10 @@ export function applyAppActionImplementation(
       return app;
     }
     case "INTERFACE_CLICK_RELEASE": {
+      const existingSelection =
+        app.controls.activeSketchTool.sketchTool === "TOOL_SELECT"
+          ? app.controls.activeSketchTool.selected
+          : [];
       if (
         app.controls.activeSketchTool.sketchTool === "TOOL_SELECT" &&
         app.controls.activeSketchTool.boxCorner !== null
@@ -537,7 +558,11 @@ export function applyAppActionImplementation(
           newTool: {
             sketchTool: "TOOL_SELECT",
             boxCorner: null,
-            selected: new Set(withinBox),
+            selected: new Set(
+              action.shiftKey
+                ? [...existingSelection, ...withinBox]
+                : withinBox,
+            ),
           },
         });
       }
