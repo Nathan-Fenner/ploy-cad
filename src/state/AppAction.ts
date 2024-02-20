@@ -28,7 +28,8 @@ export type AppAction =
   | AppActionInterfaceKeyDown
   | AppActionSketchCreatePoint
   | AppActionSketchCreateLine
-  | AppActionSketchMovePoint;
+  | AppActionSketchMovePoint
+  | AppActionSketchDelete;
 
 export type AppActionUndo = {
   action: "UNDO";
@@ -95,6 +96,11 @@ export type AppActionSketchMovePoint = {
   action: "SKETCH_MOVE_POINT";
   point: PointID;
   toPosition: XY;
+};
+
+export type AppActionSketchDelete = {
+  action: "SKETCH_DELETE";
+  toDelete: readonly SketchElementID[];
 };
 
 const SELECT_NEAR_THRESHOLD = 0.015;
@@ -574,6 +580,21 @@ export function applyAppActionImplementation(
           newTool: { sketchTool: "TOOL_CREATE_LINE" },
         });
       }
+      if (action.key === "Delete") {
+        if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
+          return applyAppAction(
+            app,
+            {
+              action: "STATE_CHANGE_TOOL",
+              newTool: { sketchTool: "TOOL_NONE" },
+            },
+            {
+              action: "SKETCH_DELETE",
+              toDelete: [...app.controls.activeSketchTool.selected],
+            },
+          );
+        }
+      }
       return app;
     }
     case "SKETCH_CREATE_POINT": {
@@ -644,6 +665,35 @@ export function applyAppActionImplementation(
             } else {
               return sketchElement;
             }
+          }),
+        },
+      };
+    }
+    case "SKETCH_DELETE": {
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "delete",
+      });
+      const toDelete = new Set(action.toDelete);
+      return {
+        ...app,
+        sketch: {
+          ...app.sketch,
+          sketchElements: app.sketch.sketchElements.filter((sketchElement) => {
+            if (toDelete.has(sketchElement.id)) {
+              return false;
+            }
+            if (sketchElement.sketchElement === "SketchElementLine") {
+              if (
+                toDelete.has(sketchElement.endpointA) ||
+                toDelete.has(sketchElement.endpointB)
+              ) {
+                return false;
+              }
+            }
+
+            return true;
           }),
         },
       };
