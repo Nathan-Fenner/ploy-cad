@@ -26,7 +26,7 @@ export const SketchPoint = memo(
         y={position.y - RECT_WIDTH / 2}
         width={RECT_WIDTH}
         height={RECT_WIDTH}
-        strokeWidth={1}
+        strokeWidth={2}
       />
     );
   },

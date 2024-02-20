@@ -1,5 +1,6 @@
 import {
   AppState,
+  ConstraintFixedID,
   LineID,
   PointID,
   SketchElementID,
@@ -32,6 +33,7 @@ export type AppAction =
   | AppActionInterfaceKeyDown
   | AppActionSketchCreatePoint
   | AppActionSketchCreateLine
+  | AppActionSketchCreateFixedConstraint
   | AppActionSketchMovePoint
   | AppActionSketchDelete;
 
@@ -96,6 +98,13 @@ export type AppActionSketchCreateLine = {
   id: LineID;
   endpointA: PointID;
   endpointB: PointID;
+};
+
+export type AppActionSketchCreateFixedConstraint = {
+  action: "SKETCH_CREATE_FIXED_CONSTRAINT";
+  id: ConstraintFixedID;
+  point: PointID;
+  position: XY;
 };
 
 export type AppActionSketchMovePoint = {
@@ -324,7 +333,6 @@ export function findOrCreatePointNear(
   }
 
   const id = new PointID(ID.uniqueID());
-  console.info("findOrCreatePointNear");
   return {
     app: applyAppAction(app, {
       action: "SKETCH_CREATE_POINT",
@@ -600,10 +608,27 @@ export function applyAppActionImplementation(
           );
         }
       }
+      if (action.key === "f") {
+        if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
+          const points = [...app.controls.activeSketchTool.selected].filter(
+            isPointID,
+          );
+          return applyAppAction(
+            app,
+            ...points.map(
+              (point): AppAction => ({
+                action: "SKETCH_CREATE_FIXED_CONSTRAINT",
+                id: new ConstraintFixedID(ID.uniqueID()),
+                point,
+                position: getPointPosition(app, point),
+              }),
+            ),
+          );
+        }
+      }
       return app;
     }
     case "SKETCH_CREATE_POINT": {
-      console.info(action);
       // TODO: Verify that this ID does not already exist in the sketch.
       app = applyAppAction(app, {
         action: "PUSH_TO_UNDO_STACK",
@@ -648,6 +673,30 @@ export function applyAppActionImplementation(
         },
       };
     }
+    case "SKETCH_CREATE_FIXED_CONSTRAINT": {
+      // TODO: Verify that the point exists
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "fix point",
+      });
+
+      return {
+        ...app,
+        sketch: {
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementConstraintFixed",
+              id: action.id,
+              point: action.point,
+              position: action.position,
+            },
+          ],
+        },
+      };
+    }
     case "SKETCH_MOVE_POINT": {
       app = applyAppAction(app, {
         action: "PUSH_TO_UNDO_STACK",
@@ -671,7 +720,7 @@ export function applyAppActionImplementation(
               return sketchElement;
             }
           }),
-        }),
+        }).updated,
       };
     }
     case "SKETCH_DELETE": {

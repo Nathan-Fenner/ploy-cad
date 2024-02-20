@@ -13,6 +13,7 @@
   --sketch-selected: rgb(31, 109, 255);
 
   --sketch-constraint: rgb(13, 237, 65);
+  --sketch-fully-constrained: rgb(21, 203, 103);
 
   --editor-text-color: white;
 }

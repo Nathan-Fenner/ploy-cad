@@ -1,12 +1,14 @@
 import { Fragment, useMemo } from "react";
 
 import { EditorAxes } from "../editor-view/EditorAxes";
-import { AppState, XY, getPointPosition } from "../state/AppState";
+import { AppState, PointID, XY, getPointPosition } from "../state/AppState";
 import { findOrCreatePointNear, findPointNear } from "../state/AppAction";
 import { SketchPoint } from "../editor-view/SketchPoint";
 import { SketchLine } from "../editor-view/SketchLine";
 import { SketchMarker } from "../editor-view/SketchMarker";
 import { SketchAABB } from "../editor-view/SketchAABB";
+import { applyConstraint } from "../state/constrain";
+import { distance } from "../geometry/vector";
 
 export function SketchView({
   appState,
@@ -15,6 +17,7 @@ export function SketchView({
   appState: AppState;
   cursorAt: XY;
 }) {
+  const constrainedPoints = applyConstraint(appState.sketch).fixedPositions;
   const hoveringPoint = findPointNear(appState, cursorAt);
 
   const visuallySelectedSet = useMemo(() => {
@@ -26,6 +29,13 @@ export function SketchView({
     }
     return new Set();
   }, [appState.controls.activeSketchTool]);
+
+  const isConstrained = (p: PointID): boolean => {
+    return (
+      constrainedPoints.has(p) &&
+      distance(getPointPosition(appState, p), constrainedPoints.get(p)!) < 0.01
+    );
+  };
 
   return (
     <>
@@ -42,6 +52,10 @@ export function SketchView({
               endpointB={endpointB}
               lineStyle="sketch"
               selected={visuallySelectedSet.has(element.id)}
+              fullyConstrained={
+                isConstrained(element.endpointA) &&
+                isConstrained(element.endpointB)
+              }
             />
           );
         }

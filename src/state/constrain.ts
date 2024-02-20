@@ -7,7 +7,7 @@ function serialize(x: object): string {
     if (value instanceof ID) {
       return `${value.constructor.name} ${value}`;
     }
-    return undefined;
+    return value;
   });
 }
 
@@ -19,7 +19,10 @@ type LocalFixed = {
 
 type LocalConstraint = LocalFixed;
 
-export function applyConstraint(sketch: SketchState): SketchState {
+export function applyConstraint(sketch: SketchState): {
+  updated: SketchState;
+  fixedPositions: ReadonlyMap<PointID, XY>;
+} {
   // We track a set of constraints.
   // Each constraint is relevant to some set of points.
 
@@ -81,17 +84,20 @@ export function applyConstraint(sketch: SketchState): SketchState {
   }
 
   return {
-    sketchElements: sketch.sketchElements.map((element) => {
-      if (
-        element.sketchElement === "SketchElementPoint" &&
-        fixedPositions.has(element.id)
-      ) {
-        return {
-          ...element,
-          position: fixedPositions.get(element.id)!,
-        };
-      }
-      return element;
-    }),
+    updated: {
+      sketchElements: sketch.sketchElements.map((element) => {
+        if (
+          element.sketchElement === "SketchElementPoint" &&
+          fixedPositions.has(element.id)
+        ) {
+          return {
+            ...element,
+            position: fixedPositions.get(element.id)!,
+          };
+        }
+        return element;
+      }),
+    },
+    fixedPositions,
   };
 }

@@ -16,3 +16,4 @@ export const COLOR_SKETCH_LINE_STROKE = "var(--sketch-line-stroke)";
 export const COLOR_SKETCH_MARKER_STROKE = "var(--sketch-marker-stroke)";
 
 export const COLOR_SKETCH_CONSTRAINT = "var(--sketch-constraint)";
+export const COLOR_SKETCH_FULLY_CONSTRAINED = "var(--sketch-fully-constrained)";
