@@ -54,7 +54,8 @@ export type SketchElement =
   | SketchElementPoint
   | SketchElementLine
   | SketchElementConstraintFixed
-  | SketchElementConstraintVertical;
+  | SketchElementConstraintVertical
+  | SketchElementConstraintDistance;
 export type SketchElementID = SketchElement["id"];
 
 export type TypeCorrespondingToSketchElementID<ID> =
@@ -103,12 +104,22 @@ export function isConstraintVerticalID(
   return id instanceof ConstraintVerticalID;
 }
 
+export function isCOnstraintDistanceID(
+  id: SketchElementID,
+): id is ConstraintDistanceID {
+  return id instanceof ConstraintDistanceID;
+}
+
 export class ConstraintFixedID extends ID {
   __constraintFixed: void = undefined;
 }
 
 export class ConstraintVerticalID extends ID {
   __constraintVertical: void = undefined;
+}
+
+export class ConstraintDistanceID extends ID {
+  __constraintDistance: void = undefined;
 }
 
 /**
@@ -183,6 +194,25 @@ export type SketchElementConstraintVertical = {
   pointB: PointID;
 };
 
+export type SketchElementConstraintDistance = {
+  sketchElement: "SketchElementConstraintDistance";
+  id: ConstraintDistanceID;
+  pointA: PointID;
+  pointB: PointID;
+  distance: number /** TODO: Replace this with a formula */;
+
+  cosmetic: {
+    /**
+     * The ratio along the line pointA-->pointB where the label is placed.
+     */
+    t: number;
+    /**
+     * The offset (in sketch units) of the label from the line.
+     */
+    offset: number;
+  };
+};
+
 export const APP_STATE_INITIAL: AppState = {
   view: { center: { x: 0, y: 0 }, size: 200 },
   controls: { panning: false, activeSketchTool: { sketchTool: "TOOL_NONE" } },
@@ -210,12 +240,23 @@ export const APP_STATE_INITIAL: AppState = {
         point: new PointID("A"),
         position: { x: 40, y: 40 },
       },
-      // {
-      //   sketchElement: "SketchElementConstraintVertical",
-      //   id: new ConstraintVerticalID("C_AB_VERT"),
-      //   pointA: new PointID("A"),
-      //   pointB: new PointID("B"),
-      // },
+      {
+        sketchElement: "SketchElementConstraintVertical",
+        id: new ConstraintVerticalID("C_AB_VERT"),
+        pointA: new PointID("A"),
+        pointB: new PointID("B"),
+      },
+      {
+        sketchElement: "SketchElementConstraintDistance",
+        id: new ConstraintDistanceID("C_DIST"),
+        pointA: new PointID("A"),
+        pointB: new PointID("B"),
+        distance: 200,
+        cosmetic: {
+          t: 0.75,
+          offset: 25,
+        },
+      },
     ],
   },
   undoState: {

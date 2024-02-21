@@ -28,9 +28,9 @@ export const SketchMarker = memo(
         <text
           style={{ pointerEvents: "none" }}
           fill={COLOR_SKETCH_CONSTRAINT}
+          fontSize={22 * pixelSize}
           x={position.x + localOffset.x * pixelSize}
           y={position.y + localOffset.y * pixelSize}
-          fontSize={22 * pixelSize}
         >
           {text}
         </text>

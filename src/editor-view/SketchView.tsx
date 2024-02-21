@@ -9,6 +9,7 @@ import { SketchMarker } from "../editor-view/SketchMarker";
 import { SketchAABB } from "../editor-view/SketchAABB";
 import { applyConstraint } from "../state/constrain";
 import { distance, pointAdd, pointScale } from "../geometry/vector";
+import { SketchLinearDimension } from "./SketchLinearDimension";
 
 export function SketchView({
   appState,
@@ -143,6 +144,19 @@ export function SketchView({
               position={middle}
               localOffset={{ x: 15, y: -15 }}
               text="V"
+            />
+          );
+        }
+        if (element.sketchElement === "SketchElementConstraintDistance") {
+          const a = getPointPosition(appState, element.pointA);
+          const b = getPointPosition(appState, element.pointB);
+          return (
+            <SketchLinearDimension
+              a={a}
+              b={b}
+              t={element.cosmetic.t}
+              offset={element.cosmetic.offset}
+              label={String(element.distance)}
             />
           );
         }
