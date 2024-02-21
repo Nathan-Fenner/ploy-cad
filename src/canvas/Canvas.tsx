@@ -117,6 +117,7 @@ export function Canvas({
         version="1.1"
         xmlns="http://www.w3.org/2000/svg"
         style={{
+          userSelect: "none",
           position: "absolute",
           left: 0,
           top: 0,
