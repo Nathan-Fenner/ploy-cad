@@ -104,6 +104,7 @@ export function SketchView({
         return null;
       })}
       {appState.sketch.sketchElements.map((element) => {
+        // Always render the point itself as "fixed".
         if (element.sketchElement === "SketchElementConstraintFixed") {
           return (
             <SketchMarker
@@ -112,6 +113,25 @@ export function SketchView({
               variety="fixed"
             />
           );
+        }
+        return null;
+      })}
+
+      {appState.sketch.sketchElements.map((element) => {
+        if (element.sketchElement === "SketchElementConstraintFixed") {
+          if (
+            visuallySelectedSet.has(element.point) ||
+            visuallySelectedSet.has(element.point)
+          ) {
+            return (
+              <SketchMarker
+                key={element.id.toString()}
+                position={element.position}
+                localOffset={{ x: 15, y: -15 }}
+                text="F"
+              />
+            );
+          }
         }
         return null;
       })}
