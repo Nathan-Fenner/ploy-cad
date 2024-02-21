@@ -104,7 +104,7 @@ export function isConstraintVerticalID(
   return id instanceof ConstraintVerticalID;
 }
 
-export function isCOnstraintDistanceID(
+export function isConstraintDistanceID(
   id: SketchElementID,
 ): id is ConstraintDistanceID {
   return id instanceof ConstraintDistanceID;

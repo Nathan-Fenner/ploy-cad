@@ -21,7 +21,7 @@ export type SketchPointProps = {
   endpointB: XY;
   lineStyle: LineStyle;
   selected?: boolean;
-  fullyConstrained?: boolean;
+  isFullyConstrained?: boolean;
 };
 
 export const SketchLine = memo(
@@ -30,7 +30,7 @@ export const SketchLine = memo(
     endpointB,
     lineStyle,
     selected,
-    fullyConstrained = false,
+    isFullyConstrained = false,
   }: SketchPointProps) => {
     return (
       <line
@@ -38,7 +38,7 @@ export const SketchLine = memo(
         stroke={
           selected
             ? COLOR_SKETCH_SELECTED
-            : fullyConstrained
+            : isFullyConstrained
             ? COLOR_SKETCH_FULLY_CONSTRAINED
             : COLOR_FROM_LINE_STYLE[lineStyle]
         }

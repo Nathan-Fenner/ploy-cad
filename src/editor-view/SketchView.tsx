@@ -83,7 +83,7 @@ export function SketchView({
               endpointB={endpointB}
               lineStyle="sketch"
               selected={visuallySelectedSet.has(element.id)}
-              fullyConstrained={
+              isFullyConstrained={
                 isConstrained(element.endpointA) &&
                 isConstrained(element.endpointB)
               }
@@ -99,6 +99,7 @@ export function SketchView({
               key={element.id.toString()}
               position={element.position}
               selected={visuallySelectedSet.has(element.id)}
+              isFullyConstrained={isConstrained(element.id)}
             />
           );
         }
