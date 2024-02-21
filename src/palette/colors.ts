@@ -8,6 +8,7 @@ export const COLOR_EDITOR_AXIS_STROKE_TERTIARY =
 
 export const COLOR_SKETCH_PREVIEW = "var(--sketch-preview)";
 export const COLOR_SKETCH_SELECTED = "var(--sketch-selected)";
+export const COLOR_SKETCH_SELECT_HALO = "var(--sketch-select-halo)";
 
 export const COLOR_SKETCH_POINT_STROKE = "var(--sketch-point-stroke)";
 export const COLOR_SKETCH_POINT_FILL = "var(--sketch-point-fill)";

@@ -11,6 +11,7 @@
   --sketch-marker-stroke: rgb(255, 117, 31);
   --sketch-preview: rgb(255, 117, 31);
   --sketch-selected: rgb(31, 109, 255);
+  --sketch-select-halo: rgb(31, 109, 255);
 
   --sketch-constraint: rgb(13, 237, 65);
   --sketch-fully-constrained: rgb(21, 203, 103);

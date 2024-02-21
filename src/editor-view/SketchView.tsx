@@ -40,6 +40,36 @@ export function SketchView({
   return (
     <>
       <EditorAxes />
+      <g style={{ opacity: 0.25 }}>
+        {appState.sketch.sketchElements.map((element) => {
+          if (!visuallySelectedSet.has(element.id)) {
+            return null;
+          }
+          if (element.sketchElement === "SketchElementLine") {
+            const endpointA = getPointPosition(appState, element.endpointA);
+            const endpointB = getPointPosition(appState, element.endpointB);
+
+            return (
+              <SketchLine
+                key={element.id.toString()}
+                endpointA={endpointA}
+                endpointB={endpointB}
+                lineStyle="selection-halo"
+              />
+            );
+          }
+          if (element.sketchElement === "SketchElementPoint") {
+            return (
+              <SketchPoint
+                key={element.id.toString()}
+                position={element.position}
+                pointStyle="selection-halo"
+              />
+            );
+          }
+          return null;
+        })}
+      </g>
       {appState.sketch.sketchElements.map((element) => {
         if (element.sketchElement === "SketchElementLine") {
           const endpointA = getPointPosition(appState, element.endpointA);
