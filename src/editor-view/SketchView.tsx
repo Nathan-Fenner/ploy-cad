@@ -8,7 +8,7 @@ import { SketchLine } from "../editor-view/SketchLine";
 import { SketchMarker } from "../editor-view/SketchMarker";
 import { SketchAABB } from "../editor-view/SketchAABB";
 import { applyConstraint } from "../state/constrain";
-import { distance } from "../geometry/vector";
+import { distance, pointAdd, pointScale } from "../geometry/vector";
 
 export function SketchView({
   appState,
@@ -132,6 +132,19 @@ export function SketchView({
               />
             );
           }
+        }
+        if (element.sketchElement === "SketchElementConstraintVertical") {
+          const a = getPointPosition(appState, element.pointA);
+          const b = getPointPosition(appState, element.pointB);
+          const middle = pointScale(pointAdd(a, b), 0.5);
+          return (
+            <SketchMarker
+              key={element.id.toString()}
+              position={middle}
+              localOffset={{ x: 15, y: -15 }}
+              text="V"
+            />
+          );
         }
         return null;
       })}

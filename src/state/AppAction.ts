@@ -1,6 +1,7 @@
 import {
   AppState,
   ConstraintFixedID,
+  ConstraintVerticalID,
   LineID,
   PointID,
   SketchElementID,
@@ -8,6 +9,7 @@ import {
   getElement,
   getPointPosition,
   isConstraintFixedID,
+  isConstraintVerticalID,
   isLineID,
   isPointID,
 } from "./AppState";
@@ -34,6 +36,7 @@ export type AppAction =
   | AppActionSketchCreatePoint
   | AppActionSketchCreateLine
   | AppActionSketchCreateFixedConstraint
+  | AppActionSketchCreateConstraintVertical
   | AppActionSketchMovePoint
   | AppActionSketchDelete;
 
@@ -107,6 +110,13 @@ export type AppActionSketchCreateFixedConstraint = {
   id: ConstraintFixedID;
   point: PointID;
   position: XY;
+};
+
+export type AppActionSketchCreateConstraintVertical = {
+  action: "SKETCH_CREATE_CONSTRAINT_VERTICAL";
+  id: ConstraintVerticalID;
+  pointA: PointID;
+  pointB: PointID;
 };
 
 export type AppActionSketchMovePoint = {
@@ -651,6 +661,35 @@ export function applyAppActionImplementation(
           );
         }
       }
+      if (action.key === "v") {
+        if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
+          const points = [
+            ...new Set(
+              [...app.controls.activeSketchTool.selected].flatMap((element) => {
+                if (isPointID(element)) {
+                  return [element];
+                }
+                if (isLineID(element)) {
+                  return [
+                    getElement(app, element).endpointA,
+                    getElement(app, element).endpointB,
+                  ];
+                }
+                return [];
+              }),
+            ),
+          ];
+          if (points.length === 2) {
+            const id = new ConstraintVerticalID(ID.uniqueID());
+            return applyAppAction(app, {
+              action: "SKETCH_CREATE_CONSTRAINT_VERTICAL",
+              id,
+              pointA: points[0],
+              pointB: points[1],
+            });
+          }
+        }
+      }
       return app;
     }
     case "SKETCH_CREATE_POINT": {
@@ -722,6 +761,30 @@ export function applyAppActionImplementation(
         },
       };
     }
+    case "SKETCH_CREATE_CONSTRAINT_VERTICAL": {
+      // TODO: Verify that the points exists
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "fix point",
+      });
+
+      return {
+        ...app,
+        sketch: {
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementConstraintVertical",
+              id: action.id,
+              pointA: action.pointA,
+              pointB: action.pointB,
+            },
+          ],
+        },
+      };
+    }
     case "SKETCH_MOVE_POINT": {
       app = applyAppAction(app, {
         action: "PUSH_TO_UNDO_STACK",
@@ -772,6 +835,12 @@ export function applyAppActionImplementation(
         }
         if (isConstraintFixedID(id)) {
           return isDeleted(getElement(app, id).point);
+        }
+        if (isConstraintVerticalID(id)) {
+          return (
+            isDeleted(getElement(app, id).pointA) ||
+            isDeleted(getElement(app, id).pointB)
+          );
         }
         return false;
       };

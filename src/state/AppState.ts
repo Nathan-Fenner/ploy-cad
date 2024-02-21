@@ -53,8 +53,9 @@ export type View = { readonly center: XY; readonly size: number };
 export type SketchElement =
   | SketchElementPoint
   | SketchElementLine
-  | SketchElementConstraintFixed;
-export type SketchElementID = PointID | LineID | ConstraintFixedID;
+  | SketchElementConstraintFixed
+  | SketchElementConstraintVertical;
+export type SketchElementID = SketchElement["id"];
 
 export type TypeCorrespondingToSketchElementID<ID> =
   TypeCorrespondingToSketchElementIDHelper<ID, SketchElement>;
@@ -96,8 +97,18 @@ export function isConstraintFixedID(
   return id instanceof ConstraintFixedID;
 }
 
+export function isConstraintVerticalID(
+  id: SketchElementID,
+): id is ConstraintVerticalID {
+  return id instanceof ConstraintVerticalID;
+}
+
 export class ConstraintFixedID extends ID {
   __constraintFixed: void = undefined;
+}
+
+export class ConstraintVerticalID extends ID {
+  __constraintVertical: void = undefined;
 }
 
 /**
@@ -165,6 +176,13 @@ export type SketchElementConstraintFixed = {
   position: XY;
 };
 
+export type SketchElementConstraintVertical = {
+  sketchElement: "SketchElementConstraintVertical";
+  id: ConstraintVerticalID;
+  pointA: PointID;
+  pointB: PointID;
+};
+
 export const APP_STATE_INITIAL: AppState = {
   view: { center: { x: 0, y: 0 }, size: 200 },
   controls: { panning: false, activeSketchTool: { sketchTool: "TOOL_NONE" } },
@@ -192,6 +210,12 @@ export const APP_STATE_INITIAL: AppState = {
         point: new PointID("A"),
         position: { x: 40, y: 40 },
       },
+      // {
+      //   sketchElement: "SketchElementConstraintVertical",
+      //   id: new ConstraintVerticalID("C_AB_VERT"),
+      //   pointA: new PointID("A"),
+      //   pointB: new PointID("B"),
+      // },
     ],
   },
   undoState: {
