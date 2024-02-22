@@ -1,7 +1,13 @@
 import { Fragment, useMemo } from "react";
 
 import { EditorAxes } from "../editor-view/EditorAxes";
-import { AppState, PointID, XY, getPointPosition } from "../state/AppState";
+import {
+  AppState,
+  PointID,
+  XY,
+  computeConstraintDistanceParameters,
+  getPointPosition,
+} from "../state/AppState";
 import { findOrCreatePointNear, findPointNear } from "../state/AppAction";
 import { SketchPoint } from "../editor-view/SketchPoint";
 import { SketchLine } from "../editor-view/SketchLine";
@@ -220,6 +226,26 @@ export function SketchView({
               endpointA={sketchTool.boxCorner}
               endpointB={cursorAt}
               dashed={cursorAt.x < sketchTool.boxCorner.x}
+            />
+          );
+        }
+
+        if (sketchTool.sketchTool === "TOOL_CREATE_DISTANCE_CONSTRAINT") {
+          const pointA = getPointPosition(appState, sketchTool.pointA);
+          const pointB = getPointPosition(appState, sketchTool.pointB);
+          const { t, offset } = computeConstraintDistanceParameters({
+            a: pointA,
+            b: pointB,
+            labelPosition: cursorAt,
+          });
+
+          return (
+            <SketchLinearDimension
+              a={pointA}
+              b={pointB}
+              t={t}
+              offset={offset}
+              label="..."
             />
           );
         }

@@ -17,7 +17,7 @@ export type SketchPointProps = {
   label: string;
 };
 
-const EXTENSION_LINE_GAP = { pixels: 30 };
+const EXTENSION_LINE_GAP = { world: 5 };
 const EXTENSION_LINE_EXTRA = { world: 10 };
 
 export const SketchLinearDimension = memo(
@@ -32,10 +32,7 @@ export const SketchLinearDimension = memo(
 
     const labelPosition = pointAdd(a, pointAdd(alignMark, perpendicularOffset));
 
-    const extensionGap = pointScale(
-      perpendicular,
-      pixelSize * EXTENSION_LINE_GAP.pixels,
-    );
+    const extensionGap = pointScale(perpendicular, EXTENSION_LINE_GAP.world);
 
     const extensionEnd = pointAdd(
       pointScale(perpendicular, pixelSize * EXTENSION_LINE_EXTRA.world),

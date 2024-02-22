@@ -6,7 +6,8 @@ export type SketchToolState =
   | SketchToolCreateLine
   | SketchToolCreateLineFromPoint
   | SketchToolSelect
-  | SketchToolDragPoint;
+  | SketchToolDragPoint
+  | SketchToolCreateDistanceConstraint;
 
 export type SketchToolNone = {
   sketchTool: "TOOL_NONE";
@@ -33,4 +34,10 @@ export type SketchToolCreateLine = {
 export type SketchToolCreateLineFromPoint = {
   sketchTool: "TOOL_CREATE_LINE_FROM_POINT";
   fromPoint: PointID;
+};
+
+export type SketchToolCreateDistanceConstraint = {
+  sketchTool: "TOOL_CREATE_DISTANCE_CONSTRAINT";
+  pointA: PointID;
+  pointB: PointID;
 };

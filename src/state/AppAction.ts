@@ -1,13 +1,16 @@
 import {
   AppState,
+  ConstraintDistanceID,
   ConstraintFixedID,
   ConstraintVerticalID,
   LineID,
   PointID,
   SketchElementID,
   View,
+  computeConstraintDistanceParameters,
   getElement,
   getPointPosition,
+  isConstraintDistanceID,
   isConstraintFixedID,
   isConstraintVerticalID,
   isLineID,
@@ -37,6 +40,7 @@ export type AppAction =
   | AppActionSketchCreateLine
   | AppActionSketchCreateFixedConstraint
   | AppActionSketchCreateConstraintVertical
+  | AppActionSketchCreateConstraintDistance
   | AppActionSketchMovePoint
   | AppActionSketchDelete;
 
@@ -117,6 +121,16 @@ export type AppActionSketchCreateConstraintVertical = {
   id: ConstraintVerticalID;
   pointA: PointID;
   pointB: PointID;
+};
+
+export type AppActionSketchCreateConstraintDistance = {
+  action: "SKETCH_CREATE_CONSTRAINT_DISTANCE";
+  id: ConstraintDistanceID;
+  pointA: PointID;
+  pointB: PointID;
+  offset: number;
+  t: number;
+  distance: number;
 };
 
 export type AppActionSketchMovePoint = {
@@ -492,6 +506,31 @@ export function applyAppActionImplementation(
           },
         );
       }
+      if (tool.sketchTool === "TOOL_CREATE_DISTANCE_CONSTRAINT") {
+        const pointA = getPointPosition(app, tool.pointA);
+        const pointB = getPointPosition(app, tool.pointB);
+        const { offset, t } = computeConstraintDistanceParameters({
+          a: pointA,
+          b: pointB,
+          labelPosition: action.at,
+        });
+        return applyAppAction(
+          app,
+          {
+            action: "SKETCH_CREATE_CONSTRAINT_DISTANCE",
+            id: new ConstraintDistanceID(ID.uniqueID()),
+            pointA: tool.pointA,
+            pointB: tool.pointB,
+            t,
+            offset,
+            distance: distance(pointA, pointB),
+          },
+          {
+            action: "STATE_CHANGE_TOOL",
+            newTool: { sketchTool: "TOOL_NONE" }, // TODO: Edit the newly-created dimension
+          },
+        );
+      }
       if (
         tool.sketchTool === "TOOL_NONE" ||
         tool.sketchTool === "TOOL_SELECT"
@@ -690,6 +729,36 @@ export function applyAppActionImplementation(
           }
         }
       }
+      if (action.key === "d") {
+        if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
+          const points = [
+            ...new Set(
+              [...app.controls.activeSketchTool.selected].flatMap((element) => {
+                if (isPointID(element)) {
+                  return [element];
+                }
+                if (isLineID(element)) {
+                  return [
+                    getElement(app, element).endpointA,
+                    getElement(app, element).endpointB,
+                  ];
+                }
+                return [];
+              }),
+            ),
+          ];
+          if (points.length === 2) {
+            return applyAppAction(app, {
+              action: "STATE_CHANGE_TOOL",
+              newTool: {
+                sketchTool: "TOOL_CREATE_DISTANCE_CONSTRAINT",
+                pointA: points[0],
+                pointB: points[1],
+              },
+            });
+          }
+        }
+      }
       return app;
     }
     case "SKETCH_CREATE_POINT": {
@@ -785,6 +854,34 @@ export function applyAppActionImplementation(
         },
       };
     }
+    case "SKETCH_CREATE_CONSTRAINT_DISTANCE": {
+      // TODO: Verify that the points exist
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "create distance dimension",
+      });
+      return applyAppAction({
+        ...app,
+        sketch: {
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementConstraintDistance",
+              id: action.id,
+              pointA: action.pointA,
+              pointB: action.pointB,
+              distance: action.distance,
+              cosmetic: {
+                t: action.t,
+                offset: action.offset,
+              },
+            },
+          ],
+        },
+      });
+    }
     case "SKETCH_MOVE_POINT": {
       app = applyAppAction(app, {
         action: "PUSH_TO_UNDO_STACK",
@@ -837,6 +934,12 @@ export function applyAppActionImplementation(
           return isDeleted(getElement(app, id).point);
         }
         if (isConstraintVerticalID(id)) {
+          return (
+            isDeleted(getElement(app, id).pointA) ||
+            isDeleted(getElement(app, id).pointB)
+          );
+        }
+        if (isConstraintDistanceID(id)) {
           return (
             isDeleted(getElement(app, id).pointA) ||
             isDeleted(getElement(app, id).pointB)

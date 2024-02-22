@@ -1,3 +1,9 @@
+import {
+  distance,
+  dotProduct,
+  pointNormalize,
+  pointSubtract,
+} from "../geometry/vector";
 import { ID } from "../id";
 import { SketchToolState } from "./ToolState";
 
@@ -194,6 +200,24 @@ export type SketchElementConstraintVertical = {
   pointB: PointID;
 };
 
+export function computeConstraintDistanceParameters({
+  a,
+  b,
+  labelPosition,
+}: {
+  a: XY;
+  b: XY;
+  labelPosition: XY;
+}): { t: number; offset: number } {
+  const delta = pointSubtract(b, a);
+  const direction = pointNormalize(delta);
+  const perpendicular = { x: -direction.y, y: direction.x };
+  const t =
+    dotProduct(direction, pointSubtract(labelPosition, a)) / distance(a, b);
+  const offset = dotProduct(perpendicular, pointSubtract(labelPosition, a));
+  return { t, offset };
+}
+
 export type SketchElementConstraintDistance = {
   sketchElement: "SketchElementConstraintDistance";
   id: ConstraintDistanceID;
@@ -226,7 +250,7 @@ export const APP_STATE_INITIAL: AppState = {
       {
         sketchElement: "SketchElementPoint",
         id: new PointID("B"),
-        position: { x: 20, y: -20 },
+        position: { x: 40, y: -60 },
       },
       {
         sketchElement: "SketchElementLine",
@@ -246,17 +270,17 @@ export const APP_STATE_INITIAL: AppState = {
         pointA: new PointID("A"),
         pointB: new PointID("B"),
       },
-      {
-        sketchElement: "SketchElementConstraintDistance",
-        id: new ConstraintDistanceID("C_DIST"),
-        pointA: new PointID("A"),
-        pointB: new PointID("B"),
-        distance: 200,
-        cosmetic: {
-          t: 0.75,
-          offset: 25,
-        },
-      },
+      // {
+      //   sketchElement: "SketchElementConstraintDistance",
+      //   id: new ConstraintDistanceID("C_DIST"),
+      //   pointA: new PointID("A"),
+      //   pointB: new PointID("B"),
+      //   distance: 100,
+      //   cosmetic: {
+      //     t: 0.75,
+      //     offset: 25,
+      //   },
+      // },
     ],
   },
   undoState: {
