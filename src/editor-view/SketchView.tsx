@@ -13,7 +13,7 @@ import { SketchPoint } from "../editor-view/SketchPoint";
 import { SketchLine } from "../editor-view/SketchLine";
 import { SketchMarker } from "../editor-view/SketchMarker";
 import { SketchAABB } from "../editor-view/SketchAABB";
-import { applyConstraint } from "../state/constrain";
+import { applyConstraint } from "../solver/constrain";
 import { distance, pointAdd, pointScale } from "../geometry/vector";
 import { SketchLinearDimension } from "./SketchLinearDimension";
 

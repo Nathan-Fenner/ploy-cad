@@ -23,7 +23,7 @@ import {
 } from "../geometry/vector";
 import { ID } from "../id";
 import { SketchToolState } from "./ToolState";
-import { applyConstraint } from "./constrain";
+import { applyConstraint } from "../solver/constrain";
 
 export type AppAction =
   | AppActionUndo

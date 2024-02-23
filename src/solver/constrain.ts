@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { pointAdd } from "../geometry/vector";
 import { ID } from "../id";
-import { PointID, SketchState, XY } from "./AppState";
+import { PointID, SketchState, XY } from "../state/AppState";
 
 function serialize(x: object): string {
   return JSON.stringify(x, (_, value) => {
