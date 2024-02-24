@@ -17,7 +17,7 @@ import {
   isPointID,
 } from "./AppState";
 import {
-  distance,
+  distanceBetweenPoints,
   distancePointToLineSegment,
   pointAdd,
 } from "../geometry/vector";
@@ -157,7 +157,7 @@ export function findGeometryNear(
   let closestPoint: { id: PointID; distance: number } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementPoint") {
-      const distanceToPoint = distance(near, element.position);
+      const distanceToPoint = distanceBetweenPoints(near, element.position);
       if (distanceToPoint > MAX_NEAR_DISTANCE) {
         continue;
       }
@@ -307,7 +307,7 @@ export function findPointNear(
   let closest: { id: PointID; distance: number; position: XY } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementPoint") {
-      const distanceToPoint = distance(near, element.position);
+      const distanceToPoint = distanceBetweenPoints(near, element.position);
       if (distanceToPoint > MAX_NEAR_DISTANCE) {
         continue;
       }
@@ -341,7 +341,7 @@ export function findOrCreatePointNear(
   let closest: { id: PointID; distance: number; position: XY } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementPoint") {
-      const distanceToPoint = distance(near, element.position);
+      const distanceToPoint = distanceBetweenPoints(near, element.position);
       if (distanceToPoint > MAX_NEAR_DISTANCE) {
         continue;
       }
@@ -523,7 +523,7 @@ export function applyAppActionImplementation(
             pointB: tool.pointB,
             t,
             offset,
-            distance: distance(pointA, pointB),
+            distance: distanceBetweenPoints(pointA, pointB),
           },
           {
             action: "STATE_CHANGE_TOOL",

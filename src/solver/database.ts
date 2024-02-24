@@ -1,4 +1,5 @@
-import { XY, distance } from "../geometry/vector";
+import { XY, distanceBetweenPoints } from "../geometry/vector";
+import { ID } from "../id";
 
 const EPSILON = 1e-5;
 
@@ -8,6 +9,18 @@ const EPSILON = 1e-5;
  * @returns Whether the facts are equal.
  */
 export function areFactsEqual(fact1: object, fact2: object): boolean {
+  if (fact1 === undefined) {
+    throw new Error("fact1 cannot be undefined");
+  }
+  if (fact2 === undefined) {
+    throw new Error("fact2 cannot be undefined");
+  }
+  if (fact1 === fact2) {
+    return true;
+  }
+  if (fact1 instanceof ID || fact2 instanceof ID) {
+    return fact1 === fact2;
+  }
   if (typeof fact1 !== typeof fact2) {
     return false;
   }
@@ -30,7 +43,7 @@ export function areFactsEqual(fact1: object, fact2: object): boolean {
     Object.keys(fact2).sort().join(";") === "x;y"
   ) {
     // Both are points, so compare them by distance.
-    return distance(fact1 as XY, fact2 as XY) < EPSILON;
+    return distanceBetweenPoints(fact1 as XY, fact2 as XY) < EPSILON;
   }
   if (typeof fact1 === "number") {
     return (
@@ -46,7 +59,15 @@ export function areFactsEqual(fact1: object, fact2: object): boolean {
     return false;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const INDEX_IGNORE: string[] | undefined = (fact1 as any).INDEX_IGNORE?.split(
+    ",",
+  );
+
   for (const [key, value1] of Object.entries(fact1)) {
+    if (key === "INDEX_IGNORE" || INDEX_IGNORE?.includes(key)) {
+      continue;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value2 = (fact2 as any)[key];
     if (!areFactsEqual(value1, value2)) {
@@ -81,9 +102,9 @@ type FactMatchingQuery4<Query, Fact> = Query extends Fact | AnySymbol
   ? true
   : false;
 
-type QueryForFact<T> = {
-  [k in keyof T]: T[k];
-};
+type QueryForFact<T> = Partial<{
+  [k in keyof T]: T[k] | AnySymbol;
+}>;
 
 /**
  * Stores a collection of facts which can be queried in a type-safe way.
@@ -137,7 +158,7 @@ export class FactDatabase<Fact extends object> {
           if (!isXY(actualValue)) {
             return false;
           }
-          return distance(queryValue, actualValue) < EPSILON;
+          return distanceBetweenPoints(queryValue, actualValue) < EPSILON;
         }
         if (typeof queryValue === "number") {
           return (

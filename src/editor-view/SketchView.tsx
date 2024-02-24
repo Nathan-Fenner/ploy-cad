@@ -14,7 +14,11 @@ import { SketchLine } from "../editor-view/SketchLine";
 import { SketchMarker } from "../editor-view/SketchMarker";
 import { SketchAABB } from "../editor-view/SketchAABB";
 import { applyConstraint } from "../solver/constrain";
-import { distance, pointAdd, pointScale } from "../geometry/vector";
+import {
+  distanceBetweenPoints,
+  pointAdd,
+  pointScale,
+} from "../geometry/vector";
 import { SketchLinearDimension } from "./SketchLinearDimension";
 
 export function SketchView({
@@ -24,7 +28,9 @@ export function SketchView({
   appState: AppState;
   cursorAt: XY;
 }) {
-  const constrainedPoints = applyConstraint(appState.sketch).fixedPositions;
+  const constrainedPoints = useMemo(() => {
+    return applyConstraint(appState.sketch).fixedPositions;
+  }, [appState.sketch]);
   const hoveringPoint = findPointNear(appState, cursorAt);
 
   const visuallySelectedSet = useMemo(() => {
@@ -40,7 +46,10 @@ export function SketchView({
   const isConstrained = (p: PointID): boolean => {
     return (
       constrainedPoints.has(p) &&
-      distance(getPointPosition(appState, p), constrainedPoints.get(p)!) < 0.01
+      distanceBetweenPoints(
+        getPointPosition(appState, p),
+        constrainedPoints.get(p)!,
+      ) < 0.01
     );
   };
 
@@ -159,6 +168,7 @@ export function SketchView({
           const b = getPointPosition(appState, element.pointB);
           return (
             <SketchLinearDimension
+              key={element.id.toString()}
               a={a}
               b={b}
               t={element.cosmetic.t}

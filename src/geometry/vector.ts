@@ -2,7 +2,7 @@ export type XY = { readonly x: number; readonly y: number };
 
 export const EPS = 0.0001;
 
-export function distance(a: XY, b: XY): number {
+export function distanceBetweenPoints(a: XY, b: XY): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
@@ -20,7 +20,7 @@ export function pointProjectOntoLine(
 
   return {
     point: pointAdd(a, pointScale(direction, length)),
-    t: length / distance(a, b),
+    t: length / distanceBetweenPoints(a, b),
   };
 }
 
@@ -28,19 +28,19 @@ export function distancePointToLineSegment(
   p: XY,
   { a, b }: { a: XY; b: XY },
 ): number {
-  if (distance(a, b) < EPS) {
-    return distance(p, a);
+  if (distanceBetweenPoints(a, b) < EPS) {
+    return distanceBetweenPoints(p, a);
   }
 
   const projection = pointProjectOntoLine(p, { a, b });
   if (projection.t >= 0 && projection.t <= 1) {
-    return distance(p, projection.point);
+    return distanceBetweenPoints(p, projection.point);
   }
 
   if (projection.t < 0) {
-    return distance(p, a);
+    return distanceBetweenPoints(p, a);
   } else {
-    return distance(p, b);
+    return distanceBetweenPoints(p, b);
   }
 }
 export function pointAdd(a: XY, b: XY): XY {

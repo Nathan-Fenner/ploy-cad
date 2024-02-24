@@ -1,5 +1,5 @@
 import {
-  distance,
+  distanceBetweenPoints,
   dotProduct,
   pointNormalize,
   pointSubtract,
@@ -213,7 +213,8 @@ export function computeConstraintDistanceParameters({
   const direction = pointNormalize(delta);
   const perpendicular = { x: -direction.y, y: direction.x };
   const t =
-    dotProduct(direction, pointSubtract(labelPosition, a)) / distance(a, b);
+    dotProduct(direction, pointSubtract(labelPosition, a)) /
+    distanceBetweenPoints(a, b);
   const offset = dotProduct(perpendicular, pointSubtract(labelPosition, a));
   return { t, offset };
 }
