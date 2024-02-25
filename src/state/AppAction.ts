@@ -7,6 +7,7 @@ import {
   PointID,
   SketchElementID,
   View,
+  computeConstraintDistanceHandlePosition,
   computeConstraintDistanceParameters,
   getElement,
   getPointPosition,
@@ -135,7 +136,7 @@ export type AppActionSketchCreateConstraintDistance = {
 
 export type AppActionSketchMovePoint = {
   action: "SKETCH_MOVE_POINT";
-  point: PointID;
+  point: PointID | ConstraintDistanceID;
   toPosition: XY;
 };
 
@@ -146,14 +147,45 @@ export type AppActionSketchDelete = {
 
 const SELECT_NEAR_THRESHOLD = 0.015;
 
-export function findGeometryNear(
+export function findClosestGeometryNear(
   app: AppState,
   near: XY,
 ): { id: SketchElementID } | null {
   // TODO: This should be interactive, so that the user can select an alternative point if they want to.
-
-  // (1/2) First, find the closest point, if any.
   const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
+
+  // (1/3) First the closest dimension, if any.
+  let closestDimension: { id: ConstraintDistanceID; distance: number } | null =
+    null;
+  for (const element of app.sketch.sketchElements) {
+    if (element.sketchElement === "SketchElementConstraintDistance") {
+      const elementHandlePosition = computeConstraintDistanceHandlePosition({
+        a: getPointPosition(app, element.pointA),
+        b: getPointPosition(app, element.pointB),
+        t: element.cosmetic.t,
+        offset: element.cosmetic.offset,
+      });
+      const distanceToHandle = distanceBetweenPoints(
+        near,
+        elementHandlePosition,
+      );
+      if (distanceToHandle > MAX_NEAR_DISTANCE) {
+        continue;
+      }
+      if (
+        closestDimension === null ||
+        closestDimension.distance > distanceToHandle
+      ) {
+        closestDimension = { id: element.id, distance: distanceToHandle };
+      }
+    }
+  }
+  if (closestDimension !== null) {
+    return { id: closestDimension.id };
+  }
+
+  // (2/3) Find the closest point, if any.
+
   let closestPoint: { id: PointID; distance: number } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementPoint") {
@@ -170,7 +202,7 @@ export function findGeometryNear(
     return { id: closestPoint.id };
   }
 
-  // (2/2) Find the closest line segment.
+  // (3/3) Find the closest line segment.
   let closestLine: { id: LineID; distance: number } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementLine") {
@@ -536,7 +568,7 @@ export function applyAppActionImplementation(
         tool.sketchTool === "TOOL_SELECT"
       ) {
         // If we clicked near a point, select it.
-        const nearbyGeometry = findGeometryNear(app, action.at);
+        const nearbyGeometry = findClosestGeometryNear(app, action.at);
 
         if (action.shiftKey && nearbyGeometry !== null) {
           // Select the new geometry, in addition to anything currently selected.
@@ -570,7 +602,16 @@ export function applyAppActionImplementation(
             action: "STATE_CHANGE_TOOL",
             newTool: {
               sketchTool: "TOOL_DRAG_POINT",
-              point: nearbyGeometry.id,
+              geometry: nearbyGeometry.id,
+            },
+          });
+        } else if (isConstraintDistanceID(nearbyGeometry.id)) {
+          // The user clicked on a dimension -- allow them to move it.
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: {
+              sketchTool: "TOOL_DRAG_POINT",
+              geometry: nearbyGeometry.id,
             },
           });
         } else {
@@ -620,7 +661,7 @@ export function applyAppActionImplementation(
           action: "STATE_CHANGE_TOOL",
           newTool: {
             sketchTool: "TOOL_SELECT",
-            selected: new Set([app.controls.activeSketchTool.point]),
+            selected: new Set([app.controls.activeSketchTool.geometry]),
             boxCorner: null,
           },
         });
@@ -629,17 +670,45 @@ export function applyAppActionImplementation(
     }
     case "INTERFACE_MOUSE_MOVE": {
       if (app.controls.activeSketchTool.sketchTool === "TOOL_DRAG_POINT") {
-        // Drag the point.
-        const currentPosition = getPointPosition(
-          app,
-          app.controls.activeSketchTool.point,
-        );
-        const targetPosition = pointAdd(currentPosition, action.delta);
-        return applyAppAction(app, {
-          action: "SKETCH_MOVE_POINT",
-          point: app.controls.activeSketchTool.point,
-          toPosition: targetPosition,
-        });
+        if (isPointID(app.controls.activeSketchTool.geometry)) {
+          // Drag the point.
+          const currentPosition = getPointPosition(
+            app,
+            app.controls.activeSketchTool.geometry,
+          );
+          const targetPosition = pointAdd(currentPosition, action.delta);
+          return applyAppAction(app, {
+            action: "SKETCH_MOVE_POINT",
+            point: app.controls.activeSketchTool.geometry,
+            toPosition: targetPosition,
+          });
+        } else if (
+          isConstraintDistanceID(app.controls.activeSketchTool.geometry)
+        ) {
+          const dimension = getElement(
+            app,
+            app.controls.activeSketchTool.geometry,
+          );
+
+          const dimensionHandlePosition =
+            computeConstraintDistanceHandlePosition({
+              a: getPointPosition(app, dimension.pointA),
+              b: getPointPosition(app, dimension.pointB),
+              t: dimension.cosmetic.t,
+              offset: dimension.cosmetic.offset,
+            });
+
+          const targetPosition = pointAdd(
+            dimensionHandlePosition,
+            action.delta,
+          );
+          return applyAppAction(app, {
+            action: "SKETCH_MOVE_POINT",
+            point: app.controls.activeSketchTool.geometry,
+            toPosition: targetPosition,
+          });
+        }
+        return assertUnreachable(app.controls.activeSketchTool.geometry);
       }
       return app;
     }
@@ -888,6 +957,7 @@ export function applyAppActionImplementation(
         key: `move-point-${action.point}`,
         debugName: "move point",
       });
+      const moveGeometry: PointID | ConstraintDistanceID = action.point;
       return {
         ...app,
         sketch: applyConstraint({
@@ -895,11 +965,25 @@ export function applyAppActionImplementation(
           sketchElements: app.sketch.sketchElements.map((sketchElement) => {
             if (
               sketchElement.sketchElement === "SketchElementPoint" &&
-              sketchElement.id === action.point
+              sketchElement.id === moveGeometry
             ) {
               return {
                 ...sketchElement,
                 position: action.toPosition,
+              };
+            } else if (
+              sketchElement.sketchElement ===
+                "SketchElementConstraintDistance" &&
+              sketchElement.id === moveGeometry
+            ) {
+              const parameters = computeConstraintDistanceParameters({
+                a: getPointPosition(app, sketchElement.pointA),
+                b: getPointPosition(app, sketchElement.pointB),
+                labelPosition: action.toPosition,
+              });
+              return {
+                ...sketchElement,
+                cosmetic: parameters,
               };
             } else {
               return sketchElement;

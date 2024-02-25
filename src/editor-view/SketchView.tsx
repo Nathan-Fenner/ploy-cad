@@ -31,14 +31,17 @@ export function SketchView({
   const constrainedPoints = useMemo(() => {
     return applyConstraint(appState.sketch).fixedPositions;
   }, [appState.sketch]);
-  const hoveringPoint = findPointNear(appState, cursorAt);
+  const hoveringPoint = useMemo(
+    () => findPointNear(appState, cursorAt),
+    [appState, cursorAt],
+  );
 
   const visuallySelectedSet = useMemo(() => {
     if (appState.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
       return appState.controls.activeSketchTool.selected;
     }
     if (appState.controls.activeSketchTool.sketchTool === "TOOL_DRAG_POINT") {
-      return new Set([appState.controls.activeSketchTool.point]);
+      return new Set([appState.controls.activeSketchTool.geometry]);
     }
     return new Set();
   }, [appState.controls.activeSketchTool]);
@@ -80,6 +83,19 @@ export function SketchView({
                 key={element.id.toString()}
                 position={element.position}
                 pointStyle="selection-halo"
+              />
+            );
+          }
+          if (element.sketchElement === "SketchElementConstraintDistance") {
+            return (
+              <SketchLinearDimension
+                key={element.id.toString()}
+                a={getPointPosition(appState, element.pointA)}
+                b={getPointPosition(appState, element.pointB)}
+                t={element.cosmetic.t}
+                offset={element.cosmetic.offset}
+                label={String(element.distance)}
+                dimensionStyle="selection-halo"
               />
             );
           }

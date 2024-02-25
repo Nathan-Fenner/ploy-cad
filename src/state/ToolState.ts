@@ -1,4 +1,4 @@
-import { PointID, SketchElementID, XY } from "./AppState";
+import { ConstraintDistanceID, PointID, SketchElementID, XY } from "./AppState";
 
 export type SketchToolState =
   | SketchToolNone
@@ -21,7 +21,7 @@ export type SketchToolSelect = {
 
 export type SketchToolDragPoint = {
   sketchTool: "TOOL_DRAG_POINT";
-  point: PointID;
+  readonly geometry: PointID | ConstraintDistanceID;
 };
 
 export type SketchToolCreatePoint = {

@@ -1,12 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { distanceBetweenPoints, pointAdd } from "../geometry/vector";
-import { ID } from "../id";
-import {
-  PointID,
-  SketchState,
-  XY,
-  isConstraintFixedID,
-} from "../state/AppState";
+import { PointID, SketchState, XY } from "../state/AppState";
 import { FactDatabase } from "./database";
 
 type GeomFact = GeomFactFixed | GeomFactVertical | GeomFactDistance;

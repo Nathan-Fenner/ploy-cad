@@ -1,7 +1,9 @@
 import {
   distanceBetweenPoints,
   dotProduct,
+  pointAdd,
   pointNormalize,
+  pointScale,
   pointSubtract,
 } from "../geometry/vector";
 import { ID } from "../id";
@@ -217,6 +219,25 @@ export function computeConstraintDistanceParameters({
     distanceBetweenPoints(a, b);
   const offset = dotProduct(perpendicular, pointSubtract(labelPosition, a));
   return { t, offset };
+}
+
+export function computeConstraintDistanceHandlePosition({
+  a,
+  b,
+  t,
+  offset,
+}: {
+  a: XY;
+  b: XY;
+  t: number;
+  offset: number;
+}): XY {
+  const delta = pointSubtract(b, a);
+  const perpendicular = pointNormalize({ x: -delta.y, y: delta.x });
+  return pointAdd(
+    pointAdd(a, pointScale(delta, t)),
+    pointScale(perpendicular, offset),
+  );
 }
 
 export type SketchElementConstraintDistance = {
