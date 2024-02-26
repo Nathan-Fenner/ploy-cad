@@ -64,3 +64,38 @@ export function pointScale(p: XY, k: number): XY {
 export function pointNormalize(p: XY): XY {
   return pointScale(p, 1 / Math.sqrt(p.x ** 2 + p.y ** 2));
 }
+
+export function intersectionBetweenLineAndCircle(
+  line: { a: XY; b: XY },
+  circle: { c: XY; r: number },
+): XY[] {
+  // ((a-c) + tv)^2 = r^2
+  // ((a-c) + tv) dot ((a-c) + tv) = r^2
+  // (a-c) dot ((a-c) + tv) + tv dot ((a-c) + tv) = r^2
+  // (a-c) dot (a-c) + t (a-c) dot v + t v dot (a-c) + t^2 v dot v = r^2
+  // t^2 [v dot v] + t [2(a-c) dot v] + [(a-c)^2 - r^2] = 0
+  const delta = pointSubtract(line.a, circle.c);
+  const v = pointSubtract(line.b, line.a);
+  const quadraticA = dotProduct(v, v);
+  const quadraticB = 2 * dotProduct(delta, v);
+  const quadraticC = dotProduct(delta, delta) - circle.r ** 2;
+
+  const discriminant = quadraticB ** 2 - 4 * quadraticA * quadraticC;
+  if (Math.abs(discriminant) < EPS) {
+    // The line is (approximately) tangent to the circle.
+    const t = -quadraticB / (2 * quadraticA);
+    return [pointAdd(line.a, pointScale(v, t))];
+  }
+  if (discriminant < 0) {
+    // The line does not intersect the circle.
+    return [];
+  }
+  // The line intersects the circle twice.
+  const t1 = (-quadraticB - Math.sqrt(discriminant)) / (2 * quadraticA);
+  const t2 = (-quadraticB + Math.sqrt(discriminant)) / (2 * quadraticA);
+
+  const p1 = pointAdd(line.a, pointScale(v, t1));
+  const p2 = pointAdd(line.a, pointScale(v, t2));
+
+  return [p1, p2];
+}

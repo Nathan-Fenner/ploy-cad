@@ -1,15 +1,36 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { distanceBetweenPoints, pointAdd } from "../geometry/vector";
+import {
+  distanceBetweenPoints,
+  intersectionBetweenLineAndCircle,
+  pointAdd,
+} from "../geometry/vector";
 import { PointID, SketchState, XY } from "../state/AppState";
 import { FactDatabase } from "./database";
 
-type GeomFact = GeomFactFixed | GeomFactVertical | GeomFactDistance;
+type GeomFact =
+  | GeomFactFixed
+  | GeomFactOnLine
+  | GeomFactOnCircle
+  | GeomFactVertical
+  | GeomFactDistance;
 type GeomFactFixed = {
   INDEX_IGNORE: "position"; // Ensures that there cannot be multiple facts for the same point.
 
   geom: "fixed";
   point: PointID;
   position: XY;
+};
+type GeomFactOnLine = {
+  geom: "line";
+  point: PointID;
+  a: XY;
+  b: XY;
+};
+type GeomFactOnCircle = {
+  geom: "circle";
+  point: PointID;
+  center: XY;
+  radius: number;
 };
 type GeomFactVertical = {
   geom: "vertical";
@@ -86,32 +107,58 @@ export function applyConstraint(sketch: SketchState): {
         geom: "vertical",
         point1: fixedPoint,
       })) {
-        for (const { distance } of database.getFacts({
-          geom: "distance",
-          point1: fixedPoint,
-          point2: p,
-        })) {
-          const originalLocation = originalLocations.get(p)!;
-          const candidate1 = pointAdd(fixedPosition, { x: 0, y: -distance });
-          const candidate2 = pointAdd(fixedPosition, { x: 0, y: distance });
+        database.addFact({
+          geom: "line",
+          point: p,
+          a: fixedPosition,
+          b: pointAdd(fixedPosition, { x: 0, y: 100 }),
+        });
+      }
+      for (const { point2: p, distance } of database.getFacts({
+        geom: "distance",
+        point1: fixedPoint,
+      })) {
+        database.addFact({
+          geom: "circle",
+          point: p,
+          center: fixedPosition,
+          radius: distance,
+        });
+      }
+    }
+
+    for (const { point, a: lineA, b: lineB } of database.getFacts({
+      geom: "line",
+    })) {
+      const originalLocation = originalLocations.get(point)!;
+      // This point lies on a known line.
+      for (const { center, radius } of database.getFacts({
+        geom: "circle",
+        point,
+      })) {
+        // This point also lies on a known circle.
+        const intersections = intersectionBetweenLineAndCircle(
+          { a: lineA, b: lineB },
+          { c: center, r: radius },
+        );
+
+        let closestIntersection: XY | null = null;
+        for (const intersection of intersections) {
           if (
-            distanceBetweenPoints(originalLocation, candidate1) <
-            distanceBetweenPoints(originalLocation, candidate2)
+            closestIntersection === null ||
+            distanceBetweenPoints(closestIntersection, originalLocation) >
+              distanceBetweenPoints(intersection, originalLocation)
           ) {
-            database.addFact({
-              geom: "fixed",
-              INDEX_IGNORE: "position",
-              point: p,
-              position: candidate1,
-            });
-          } else {
-            database.addFact({
-              geom: "fixed",
-              INDEX_IGNORE: "position",
-              point: p,
-              position: candidate2,
-            });
+            closestIntersection = intersection;
           }
+        }
+        if (closestIntersection !== null) {
+          database.addFact({
+            geom: "fixed",
+            INDEX_IGNORE: "position",
+            point,
+            position: closestIntersection,
+          });
         }
       }
     }
