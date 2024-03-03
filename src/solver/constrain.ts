@@ -14,6 +14,7 @@ type GeomFact =
   | GeomFactOnLine
   | GeomFactOnCircle
   | GeomFactVertical
+  | GeomFactHorizontal
   | GeomFactDistance;
 type GeomFactFixed = {
   INDEX_IGNORE: "position"; // Ensures that there cannot be multiple facts for the same point.
@@ -36,6 +37,11 @@ type GeomFactOnCircle = {
 };
 type GeomFactVertical = {
   geom: "vertical";
+  point1: PointID;
+  point2: PointID;
+};
+type GeomFactHorizontal = {
+  geom: "horizontal";
   point1: PointID;
   point2: PointID;
 };
@@ -69,14 +75,14 @@ export function applyConstraint(sketch: SketchState): {
         position: element.position,
       });
     }
-    if (element.sketchElement === "SketchElementConstraintVertical") {
+    if (element.sketchElement === "SketchElementConstraintAxisAligned") {
       database.addFact({
-        geom: "vertical",
+        geom: element.axis,
         point1: element.pointA,
         point2: element.pointB,
       });
       database.addFact({
-        geom: "vertical",
+        geom: element.axis,
         point1: element.pointB,
         point2: element.pointA,
       });
@@ -114,6 +120,17 @@ export function applyConstraint(sketch: SketchState): {
           point: p,
           a: fixedPosition,
           b: pointAdd(fixedPosition, { x: 0, y: 100 }),
+        });
+      }
+      for (const { point2: p } of database.getFacts({
+        geom: "horizontal",
+        point1: fixedPoint,
+      })) {
+        database.addFact({
+          geom: "line",
+          point: p,
+          a: fixedPosition,
+          b: pointAdd(fixedPosition, { x: 100, y: 0 }),
         });
       }
       for (const { point2: p, distance } of database.getFacts({

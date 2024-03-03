@@ -62,7 +62,7 @@ export type SketchElement =
   | SketchElementPoint
   | SketchElementLine
   | SketchElementConstraintFixed
-  | SketchElementConstraintVertical
+  | SketchElementConstraintAxisAligned
   | SketchElementConstraintDistance;
 export type SketchElementID = SketchElement["id"];
 
@@ -106,10 +106,10 @@ export function isConstraintFixedID(
   return id instanceof ConstraintFixedID;
 }
 
-export function isConstraintVerticalID(
+export function isConstraintAxisAlignedID(
   id: SketchElementID,
-): id is ConstraintVerticalID {
-  return id instanceof ConstraintVerticalID;
+): id is ConstraintAxisAlignedID {
+  return id instanceof ConstraintAxisAlignedID;
 }
 
 export function isConstraintDistanceID(
@@ -122,8 +122,8 @@ export class ConstraintFixedID extends ID {
   __constraintFixed: void = undefined;
 }
 
-export class ConstraintVerticalID extends ID {
-  __constraintVertical: void = undefined;
+export class ConstraintAxisAlignedID extends ID {
+  __constraintAxisAligned: void = undefined;
 }
 
 export class ConstraintDistanceID extends ID {
@@ -195,9 +195,10 @@ export type SketchElementConstraintFixed = {
   position: XY;
 };
 
-export type SketchElementConstraintVertical = {
-  sketchElement: "SketchElementConstraintVertical";
-  id: ConstraintVerticalID;
+export type SketchElementConstraintAxisAligned = {
+  sketchElement: "SketchElementConstraintAxisAligned";
+  axis: "horizontal" | "vertical";
+  id: ConstraintAxisAlignedID;
   pointA: PointID;
   pointB: PointID;
 };
@@ -287,8 +288,9 @@ export const APP_STATE_INITIAL: AppState = {
         position: { x: 40, y: 40 },
       },
       {
-        sketchElement: "SketchElementConstraintVertical",
-        id: new ConstraintVerticalID("C_AB_VERT"),
+        sketchElement: "SketchElementConstraintAxisAligned",
+        id: new ConstraintAxisAlignedID("C_AB_VERT"),
+        axis: "vertical",
         pointA: new PointID("A"),
         pointB: new PointID("B"),
       },

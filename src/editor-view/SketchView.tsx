@@ -166,7 +166,7 @@ export function SketchView({
             );
           }
         }
-        if (element.sketchElement === "SketchElementConstraintVertical") {
+        if (element.sketchElement === "SketchElementConstraintAxisAligned") {
           const a = getPointPosition(appState, element.pointA);
           const b = getPointPosition(appState, element.pointB);
           const middle = pointScale(pointAdd(a, b), 0.5);
@@ -175,7 +175,7 @@ export function SketchView({
               key={element.id.toString()}
               position={middle}
               localOffset={{ x: 15, y: -15 }}
-              text="V"
+              text={element.axis === "vertical" ? "V" : "H"}
             />
           );
         }

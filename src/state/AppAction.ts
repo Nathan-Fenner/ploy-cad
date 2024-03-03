@@ -2,7 +2,7 @@ import {
   AppState,
   ConstraintDistanceID,
   ConstraintFixedID,
-  ConstraintVerticalID,
+  ConstraintAxisAlignedID,
   LineID,
   PointID,
   SketchElementID,
@@ -13,7 +13,7 @@ import {
   getPointPosition,
   isConstraintDistanceID,
   isConstraintFixedID,
-  isConstraintVerticalID,
+  isConstraintAxisAlignedID,
   isLineID,
   isPointID,
 } from "./AppState";
@@ -40,7 +40,7 @@ export type AppAction =
   | AppActionSketchCreatePoint
   | AppActionSketchCreateLine
   | AppActionSketchCreateFixedConstraint
-  | AppActionSketchCreateConstraintVertical
+  | AppActionSketchCreateConstraintAxisAligned
   | AppActionSketchCreateConstraintDistance
   | AppActionSketchMovePoint
   | AppActionSketchDelete
@@ -117,9 +117,10 @@ export type AppActionSketchCreateFixedConstraint = {
   position: XY;
 };
 
-export type AppActionSketchCreateConstraintVertical = {
-  action: "SKETCH_CREATE_CONSTRAINT_VERTICAL";
-  id: ConstraintVerticalID;
+export type AppActionSketchCreateConstraintAxisAligned = {
+  action: "SKETCH_CREATE_CONSTRAINT_AXIS_ALIGNED";
+  axis: "horizontal" | "vertical";
+  id: ConstraintAxisAlignedID;
   pointA: PointID;
   pointB: PointID;
 };
@@ -810,9 +811,10 @@ export function applyAppActionImplementation(
             ),
           ];
           if (points.length === 2) {
-            const id = new ConstraintVerticalID(ID.uniqueID());
+            const id = new ConstraintAxisAlignedID(ID.uniqueID());
             return applyAppAction(app, {
-              action: "SKETCH_CREATE_CONSTRAINT_VERTICAL",
+              action: "SKETCH_CREATE_CONSTRAINT_AXIS_ALIGNED",
+              axis: "vertical",
               id,
               pointA: points[0],
               pointB: points[1],
@@ -820,6 +822,37 @@ export function applyAppActionImplementation(
           }
         }
       }
+      if (action.key === "h") {
+        if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
+          const points = [
+            ...new Set(
+              [...app.controls.activeSketchTool.selected].flatMap((element) => {
+                if (isPointID(element)) {
+                  return [element];
+                }
+                if (isLineID(element)) {
+                  return [
+                    getElement(app, element).endpointA,
+                    getElement(app, element).endpointB,
+                  ];
+                }
+                return [];
+              }),
+            ),
+          ];
+          if (points.length === 2) {
+            const id = new ConstraintAxisAlignedID(ID.uniqueID());
+            return applyAppAction(app, {
+              action: "SKETCH_CREATE_CONSTRAINT_AXIS_ALIGNED",
+              axis: "horizontal",
+              id,
+              pointA: points[0],
+              pointB: points[1],
+            });
+          }
+        }
+      }
+
       if (action.key === "d") {
         if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
           const points = [
@@ -921,7 +954,7 @@ export function applyAppActionImplementation(
         },
       };
     }
-    case "SKETCH_CREATE_CONSTRAINT_VERTICAL": {
+    case "SKETCH_CREATE_CONSTRAINT_AXIS_ALIGNED": {
       // TODO: Verify that the points exists
       app = applyAppAction(app, {
         action: "PUSH_TO_UNDO_STACK",
@@ -931,18 +964,19 @@ export function applyAppActionImplementation(
 
       return {
         ...app,
-        sketch: {
+        sketch: applyConstraint({
           ...app.sketch,
           sketchElements: [
             ...app.sketch.sketchElements,
             {
-              sketchElement: "SketchElementConstraintVertical",
+              sketchElement: "SketchElementConstraintAxisAligned",
               id: action.id,
+              axis: action.axis,
               pointA: action.pointA,
               pointB: action.pointB,
             },
           ],
-        },
+        }).updated,
       };
     }
     case "SKETCH_CREATE_CONSTRAINT_DISTANCE": {
@@ -954,7 +988,7 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: {
+        sketch: applyConstraint({
           ...app.sketch,
           sketchElements: [
             ...app.sketch.sketchElements,
@@ -970,7 +1004,7 @@ export function applyAppActionImplementation(
               },
             },
           ],
-        },
+        }).updated,
       };
     }
     case "SKETCH_UPDATE_CONSTRAINT": {
@@ -1059,7 +1093,7 @@ export function applyAppActionImplementation(
         if (isConstraintFixedID(id)) {
           return isDeleted(getElement(app, id).point);
         }
-        if (isConstraintVerticalID(id)) {
+        if (isConstraintAxisAlignedID(id)) {
           return (
             isDeleted(getElement(app, id).pointA) ||
             isDeleted(getElement(app, id).pointB)
