@@ -99,3 +99,54 @@ export function intersectionBetweenLineAndCircle(
 
   return [p1, p2];
 }
+
+export function intersectionBetweenTwoCircles(
+  c1: { center: XY; radius: number },
+  c2: { center: XY; radius: number },
+): XY[] {
+  if (distanceBetweenPoints(c1.center, c2.center) < EPS) {
+    // This is a degenerate case.
+    return [];
+  }
+
+  const distance = distanceBetweenPoints(c1.center, c2.center);
+  if (distance > c1.radius + c2.radius + EPS) {
+    // The circles are too far apart to touch.
+    return [];
+  }
+  const forward = pointNormalize(pointSubtract(c2.center, c1.center));
+  const right = { x: -forward.y, y: forward.x };
+
+  // Let's use "f" and "r" as the natural coordinates forward and right,
+  // with the origin at c1.center. Then we want to solve:
+  // * (f^2 + r^2) = c1.r^2
+  // * ((f - distance)^2 + r^2) = c2.r^2
+
+  // From the first equation, we have
+  // r = +/- sqrt(c1.r^2 - f^2)
+
+  // Substituting this into the second equation, we have
+  // * ((f - distance)^2 + c1.r^2 - f^2) = c2.r^2
+  // * f^2 + distance^2 - 2f distance + c1.r^2 - f^2 = c2.r^2
+  // * distance^2 - 2f distance + c1.r^2 = c2.r^2
+  // * f = (c2.r^2 - c1.r^2 - distance^2) / (-2distance)
+  const f = (c2.radius ** 2 - c1.radius ** 2) / (-2 * distance) + distance / 2;
+
+  if (Math.abs(f) > c1.radius + EPS) {
+    // The circles do not intersect
+    return [];
+  }
+  if (Math.abs(f) > c1.radius - EPS) {
+    // The circles intersect at one point only.
+    return [pointAdd(c1.center, pointScale(forward, c1.radius * Math.sign(f)))];
+  }
+
+  const r = Math.sqrt(c1.radius ** 2 - f ** 2);
+
+  const along = pointAdd(c1.center, pointScale(forward, f));
+
+  return [
+    pointAdd(along, pointScale(right, r)),
+    pointAdd(along, pointScale(right, -r)),
+  ];
+}

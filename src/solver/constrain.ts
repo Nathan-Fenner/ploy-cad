@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  EPS,
   distanceBetweenPoints,
   intersectionBetweenLineAndCircle,
+  intersectionBetweenTwoCircles,
   pointAdd,
 } from "../geometry/vector";
 import { PointID, SketchState, XY } from "../state/AppState";
@@ -159,6 +161,43 @@ export function applyConstraint(sketch: SketchState): {
             point,
             position: closestIntersection,
           });
+        }
+      }
+    }
+
+    for (const { point, center: center1, radius: radius1 } of database.getFacts(
+      { geom: "circle" },
+    )) {
+      for (const { center: center2, radius: radius2 } of database.getFacts({
+        geom: "circle",
+        point,
+      })) {
+        if (distanceBetweenPoints(center1, center2) > EPS) {
+          const originalLocation = originalLocations.get(point)!;
+
+          // Find the intersection of these two circles.
+          const intersectionPoints = intersectionBetweenTwoCircles(
+            { center: center1, radius: radius1 },
+            { center: center2, radius: radius2 },
+          );
+          let closestIntersection: XY | null = null;
+          for (const intersection of intersectionPoints) {
+            if (
+              closestIntersection === null ||
+              distanceBetweenPoints(closestIntersection, originalLocation) >
+                distanceBetweenPoints(intersection, originalLocation)
+            ) {
+              closestIntersection = intersection;
+            }
+          }
+          if (closestIntersection !== null) {
+            database.addFact({
+              geom: "fixed",
+              INDEX_IGNORE: "position",
+              point,
+              position: closestIntersection,
+            });
+          }
         }
       }
     }
