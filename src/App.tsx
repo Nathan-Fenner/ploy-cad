@@ -1,9 +1,24 @@
-import { useLayoutEffect, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 
-import { APP_STATE_INITIAL, View, XY } from "./state/AppState";
-import { applyAppActionImplementation } from "./state/AppAction";
+import {
+  APP_STATE_INITIAL,
+  AppState,
+  ConstraintDistanceID,
+  View,
+  XY,
+  getElement,
+} from "./state/AppState";
+import { AppAction, applyAppActionImplementation } from "./state/AppAction";
 import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
 import { ZOOM_SPEED } from "./constants";
 import { SketchToolState } from "./state/ToolState";
@@ -42,22 +57,44 @@ function useKeyDown(
   }, []);
 }
 
+/**
+ * Returns true if the current action is modal, meaning that it prevents access to the app via the canvas.
+ */
+function isToolModal(appState: AppState): boolean {
+  return (
+    appState.controls.activeSketchTool.sketchTool === "TOOL_EDIT_DIMENSION"
+  );
+}
+
 function App() {
-  const [appState, dispatch] = useReducer(
+  const [appState, dispatchApp] = useReducer(
     applyAppActionImplementation,
     APP_STATE_INITIAL,
   );
 
+  const isInModalMode = useMemo(() => isToolModal(appState), [appState]);
+
+  // This callback can be selectively disabled to "freeze" the canvas.
+  const dispatchCanvas = useCallback(
+    (action: AppAction) => {
+      if (isInModalMode) {
+        return;
+      }
+      dispatchApp(action);
+    },
+    [dispatchApp, isInModalMode],
+  );
+
   const view = appState.view;
-  const setView = (view: View): void => {
-    dispatch({ action: "CHANGE_VIEW", newView: view });
+  const canvasSetView = (view: View): void => {
+    dispatchCanvas({ action: "CHANGE_VIEW", newView: view });
   };
   const panning = appState.controls.panning;
 
   const [at, setAt] = useState({ x: 0, y: 0 });
 
   useKeyDown((key, { ctrlKey }) => {
-    dispatch({ action: "INTERFACE_KEYDOWN", key, ctrlKey });
+    dispatchCanvas({ action: "INTERFACE_KEYDOWN", key, ctrlKey });
   });
 
   return (
@@ -76,7 +113,7 @@ function App() {
         onMouseMove={(p, delta) => {
           setAt(p);
           if (panning) {
-            setView({
+            canvasSetView({
               center: {
                 x: view.center.x - delta.x,
                 y: view.center.y - delta.y,
@@ -84,30 +121,43 @@ function App() {
               size: view.size,
             });
           }
-          dispatch({ action: "INTERFACE_MOUSE_MOVE", position: p, delta });
+          dispatchCanvas({
+            action: "INTERFACE_MOUSE_MOVE",
+            position: p,
+            delta,
+          });
         }}
         onZoom={(zoomCenter, zoomSteps) => {
-          setView(zoomTo(view, zoomCenter, zoomSteps * ZOOM_SPEED));
+          canvasSetView(zoomTo(view, zoomCenter, zoomSteps * ZOOM_SPEED));
         }}
         onMouseUp={(buttons, _at, { shiftKey }) => {
           if ((buttons & 4) === 0 && panning) {
-            dispatch({ action: "STOP_PANNING" });
+            dispatchCanvas({ action: "STOP_PANNING" });
           }
           if (!(buttons & 1)) {
-            dispatch({ action: "INTERFACE_CLICK_RELEASE", at, shiftKey });
+            dispatchCanvas({ action: "INTERFACE_CLICK_RELEASE", at, shiftKey });
           }
         }}
-        onMouseDown={(buttons, _at, { shiftKey }) => {
+        onMouseDown={(buttons, _at, { shiftKey, isDouble }) => {
           if ((buttons & 4) !== 0 && !panning) {
-            dispatch({ action: "BEGIN_PANNING" });
+            dispatchCanvas({ action: "BEGIN_PANNING" });
           }
           if (buttons === 1) {
-            dispatch({ action: "INTERFACE_CLICK", at, shiftKey });
+            dispatchCanvas({
+              action: "INTERFACE_CLICK",
+              at,
+              shiftKey,
+              isDouble,
+            });
           }
         }}
       >
         <SketchView appState={appState} cursorAt={at} />
       </Canvas>
+
+      {isInModalMode && (
+        <ModalView appState={appState} dispatch={dispatchApp} />
+      )}
 
       <div style={{ position: "fixed", left: 20, bottom: 20 }}>
         <DebugToolState tool={appState.controls.activeSketchTool} />
@@ -122,6 +172,169 @@ function DebugToolState({ tool }: { tool: SketchToolState }) {
       <DebugToolStateLabel tool={tool} />
       <DebugToolStateExtra tool={tool} />
     </div>
+  );
+}
+
+function ModalContents({
+  appState,
+  dispatch,
+  onClose,
+}: {
+  appState: AppState;
+  dispatch: (action: AppAction) => void;
+  onClose: () => void;
+}) {
+  if (appState.controls.activeSketchTool.sketchTool === "TOOL_EDIT_DIMENSION") {
+    return (
+      <ModalEditDimensionValue
+        appState={appState}
+        dimensionID={appState.controls.activeSketchTool.dimension}
+        dispatch={dispatch}
+        onClose={onClose}
+      />
+    );
+  }
+  return <>??? unknown tool/action</>;
+}
+
+function ModalEditDimensionValue({
+  appState,
+  dispatch,
+  dimensionID,
+  onClose,
+}: {
+  appState: AppState;
+  dispatch: (action: AppAction) => void;
+  dimensionID: ConstraintDistanceID;
+  onClose: () => void;
+}) {
+  const dimension = useMemo(() => {
+    return getElement(appState, dimensionID);
+  }, [appState, dimensionID]);
+  const [valueAsText, setValueAsText] = useState(() => {
+    return dimension.distance.toFixed(2);
+  });
+
+  const inputRef = useRef<HTMLInputElement>(null!);
+  useEffect(() => {
+    // It's unclear to me why this is needed-
+    // maybe something to do with the input being
+    // inside of a dialog?
+    setTimeout(() => {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }, 0);
+  }, []);
+
+  const validatedResult = useMemo(():
+    | { ok: false; message: string }
+    | { ok: true; value: number } => {
+    if (!valueAsText.trim()) {
+      return { ok: false, message: "You must enter a value." };
+    }
+    const newValue = parseFloat(valueAsText.trim());
+
+    if (!isFinite(newValue)) {
+      return { ok: false, message: "You must enter a finite value." };
+    }
+
+    if (newValue < 0) {
+      return { ok: false, message: "You must enter a positive value." };
+    }
+
+    return { ok: true, value: newValue };
+  }, [valueAsText]);
+
+  const submitCurrentValue = () => {
+    if (validatedResult.ok) {
+      dispatch({
+        action: "SKETCH_UPDATE_CONSTRAINT",
+        dimensionID,
+        newDistance: validatedResult.value,
+      });
+      onClose();
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span>Edit dimension</span>
+      <input
+        value={valueAsText}
+        onChange={(e) => {
+          setValueAsText(e.currentTarget.value);
+        }}
+        ref={inputRef}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.stopPropagation();
+            submitCurrentValue();
+          }
+        }}
+      />
+
+      <button
+        onClick={() => {
+          submitCurrentValue();
+        }}
+      >
+        Set
+      </button>
+      {validatedResult.ok === false && <span>{validatedResult.message}</span>}
+    </div>
+  );
+}
+
+function ModalView({
+  appState,
+  dispatch,
+}: {
+  appState: AppState;
+  dispatch: (action: AppAction) => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null!);
+
+  const close = () => {
+    dispatch({
+      action: "INTERFACE_KEYDOWN",
+      key: "Escape",
+      ctrlKey: false,
+    });
+  };
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+    };
+  }, []);
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={() => {
+        close();
+      }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          // ...
+          dispatch({
+            action: "INTERFACE_KEYDOWN",
+            key: "Escape",
+            ctrlKey: false,
+          });
+        }
+      }}
+      style={{ padding: 0 }}
+    >
+      <div style={{ padding: 20 }}>
+        <ModalContents
+          appState={appState}
+          dispatch={dispatch}
+          onClose={close}
+        />
+      </div>
+    </dialog>
   );
 }
 

@@ -44,7 +44,7 @@ type CanvasProps = {
   onMouseDown?: (
     buttons: number,
     at: XY,
-    modifiers: { shiftKey: boolean },
+    modifiers: { shiftKey: boolean; isDouble: boolean },
   ) => void;
   onMouseUp?: (
     buttons: number,
@@ -105,6 +105,8 @@ export function Canvas({
     }
   });
 
+  const lastClickTimeRef = useRef<number | null>(null);
+
   return (
     <div
       className="svg-container"
@@ -149,8 +151,22 @@ export function Canvas({
         }}
         onMouseDown={(e) => {
           if (onMouseDown) {
+            const now = Date.now();
+            const DOUBLE_CLICK_TIME_BUFFER = 300;
+
+            const isDouble =
+              lastClickTimeRef.current !== null &&
+              Date.now() < lastClickTimeRef.current + DOUBLE_CLICK_TIME_BUFFER;
+
+            if (isDouble) {
+              lastClickTimeRef.current = null;
+            } else {
+              lastClickTimeRef.current = now;
+            }
+
             onMouseDown(e.buttons, screenToMouse(e, e.currentTarget), {
               shiftKey: e.shiftKey,
+              isDouble,
             });
           }
         }}

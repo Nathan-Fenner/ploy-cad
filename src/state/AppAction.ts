@@ -43,9 +43,8 @@ export type AppAction =
   | AppActionSketchCreateConstraintVertical
   | AppActionSketchCreateConstraintDistance
   | AppActionSketchMovePoint
-  | AppActionSketchDelete;
-
-applyConstraint;
+  | AppActionSketchDelete
+  | AppActionSketchUpdateConstraint;
 
 export type AppActionUndo = {
   action: "UNDO";
@@ -80,6 +79,7 @@ export type AppActionInterfaceClick = {
   action: "INTERFACE_CLICK";
   at: XY;
   shiftKey: boolean;
+  isDouble: boolean;
 };
 export type AppActionInterfaceClickRelease = {
   action: "INTERFACE_CLICK_RELEASE";
@@ -143,6 +143,12 @@ export type AppActionSketchMovePoint = {
 export type AppActionSketchDelete = {
   action: "SKETCH_DELETE";
   toDelete: readonly SketchElementID[];
+};
+
+export type AppActionSketchUpdateConstraint = {
+  action: "SKETCH_UPDATE_CONSTRAINT";
+  dimensionID: ConstraintDistanceID;
+  newDistance: number;
 };
 
 const SELECT_NEAR_THRESHOLD = 0.015;
@@ -596,6 +602,22 @@ export function applyAppActionImplementation(
                 tool.sketchTool === "TOOL_SELECT" ? tool.selected : new Set(),
             },
           });
+        } else if (
+          action.isDouble &&
+          isConstraintDistanceID(nearbyGeometry.id) &&
+          tool.sketchTool === "TOOL_SELECT" &&
+          tool.selected.has(nearbyGeometry.id)
+        ) {
+          // The user double-clicked a dimension that is already selected.
+          // Enter constraint-editing mode.
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: {
+              sketchTool: "TOOL_EDIT_DIMENSION",
+              dimension: nearbyGeometry.id,
+              selected: tool.selected,
+            },
+          });
         } else if (isPointID(nearbyGeometry.id)) {
           // The user clicked on a point -- allow them to move it.
           return applyAppAction(app, {
@@ -930,7 +952,7 @@ export function applyAppActionImplementation(
         key: null,
         debugName: "create distance dimension",
       });
-      return applyAppAction({
+      return {
         ...app,
         sketch: {
           ...app.sketch,
@@ -949,7 +971,27 @@ export function applyAppActionImplementation(
             },
           ],
         },
+      };
+    }
+    case "SKETCH_UPDATE_CONSTRAINT": {
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "update distance dimension",
       });
+      return {
+        ...app,
+        sketch: applyConstraint({
+          ...app.sketch,
+          sketchElements: app.sketch.sketchElements.map((element) => {
+            if (element.id === action.dimensionID) {
+              return { ...element, distance: action.newDistance };
+            } else {
+              return element;
+            }
+          }),
+        }).updated,
+      };
     }
     case "SKETCH_MOVE_POINT": {
       app = applyAppAction(app, {

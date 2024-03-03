@@ -17,9 +17,28 @@
   --sketch-fully-constrained: rgb(21, 203, 103);
 
   --editor-text-color: white;
+
+  --focus-color: #4fa;
+  --focus-color-secondary: rgb(8, 136, 57);
+
+  --input-select-color: rgba(68, 255, 171, 0.448);
+
+  --button-color: #578;
+
+  font-size: 120%;
 }
 
 .editor {
   color: var(--editor-text-color);
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+dialog ::backdrop {
+  background-color: white;
+}
+dialog {
+  background-color: var(--editor-background);
+  color: var(--editor-text-color);
+  border: 1px solid var(--editor-text-color);
+  border-radius: 3px;
 }

@@ -7,7 +7,8 @@ export type SketchToolState =
   | SketchToolCreateLineFromPoint
   | SketchToolSelect
   | SketchToolDragPoint
-  | SketchToolCreateDistanceConstraint;
+  | SketchToolCreateDistanceConstraint
+  | SketchToolEditDimension;
 
 export type SketchToolNone = {
   sketchTool: "TOOL_NONE";
@@ -40,4 +41,10 @@ export type SketchToolCreateDistanceConstraint = {
   sketchTool: "TOOL_CREATE_DISTANCE_CONSTRAINT";
   pointA: PointID;
   pointB: PointID;
+};
+
+export type SketchToolEditDimension = {
+  sketchTool: "TOOL_EDIT_DIMENSION";
+  dimension: ConstraintDistanceID;
+  selected: ReadonlySet<SketchElementID>;
 };
