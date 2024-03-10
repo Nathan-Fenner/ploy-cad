@@ -33,6 +33,7 @@ export function distancePointToLineSegment(
   }
 
   const projection = pointProjectOntoLine(p, { a, b });
+
   if (projection.t >= 0 && projection.t <= 1) {
     return distanceBetweenPoints(p, projection.point);
   }
@@ -63,6 +64,48 @@ export function pointScale(p: XY, k: number): XY {
 
 export function pointNormalize(p: XY): XY {
   return pointScale(p, 1 / Math.sqrt(p.x ** 2 + p.y ** 2));
+}
+
+/**
+ * Returns the point that occurs on both of the provided (infinite) lines.
+ * If either line is degenerate, returns `null`.
+ * If the lines are identical or parallel, returns `null`.
+ */
+export function intersectionBetweenTwoLines(
+  line1: { a: XY; b: XY },
+  line2: { a: XY; b: XY },
+): XY | null {
+  if (distanceBetweenPoints(line1.a, line1.b) < EPS) {
+    return null;
+  }
+  if (distanceBetweenPoints(line2.a, line2.b) < EPS) {
+    return null;
+  }
+
+  const forward1 = pointSubtract(line1.b, line1.a);
+  const forward2 = pointSubtract(line2.b, line2.a);
+
+  const right1 = { x: -forward1.y, y: forward1.x };
+
+  // A point `p` lies on line1 if (p - line1.a) dot right1 == 0.
+
+  if (Math.abs(dotProduct(forward2, right1)) < EPS) {
+    return null;
+  }
+
+  // We want to find the parameter t such that:
+  // (line2.a + t * forward2 - line1.a) dot right1 == 0
+  // (t * forward2 + line2.a - line1.a) dot right1 == 0
+  // t * (forward2 dot right1) + (line2.a - line1.a) dot right1 == 0
+
+  const t =
+    dotProduct(pointSubtract(line1.a, line2.a), right1) /
+    dotProduct(forward2, right1);
+
+  if (!isFinite(t)) {
+    return null;
+  }
+  return pointAdd(line2.a, pointScale(forward2, t));
 }
 
 export function intersectionBetweenLineAndCircle(

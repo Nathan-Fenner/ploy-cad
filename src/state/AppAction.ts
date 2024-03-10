@@ -18,8 +18,10 @@ import {
   isPointID,
 } from "./AppState";
 import {
+  EPS,
   distanceBetweenPoints,
   distancePointToLineSegment,
+  intersectionBetweenTwoLines,
   pointAdd,
 } from "../geometry/vector";
 import { ID } from "../id";
@@ -236,13 +238,18 @@ function isPointInAABB({
   point,
   min,
   max,
+  slack = 0,
 }: {
   point: XY;
   min: XY;
   max: XY;
+  slack?: number;
 }): boolean {
   return (
-    point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y
+    point.x >= min.x - slack &&
+    point.x <= max.x + slack &&
+    point.y >= min.y - slack &&
+    point.y <= max.y + slack
   );
 }
 
@@ -291,7 +298,7 @@ export function findAllGeometryFullyWithinBox(
 }
 
 /**
- * Returns all geometry which is fully contained within the provided box.
+ * Returns all geometry which is partially contained within the provided box.
  */
 export function findAllGeometryPartiallyWithinBox(
   app: AppState,
@@ -316,7 +323,7 @@ export function findAllGeometryPartiallyWithinBox(
       }
     }
   }
-  for (const element of app.sketch.sketchElements) {
+  elementLoop: for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementLine") {
       const positionA = pointPositions.get(element.endpointA);
       const positionB = pointPositions.get(element.endpointB);
@@ -330,7 +337,38 @@ export function findAllGeometryPartiallyWithinBox(
         inside.push(element.id);
         continue;
       }
-      // TODO: Otherwise, check whether it crosses the box boundary
+
+      const corners = [
+        min,
+        { x: min.x, y: max.y },
+        max,
+        { x: max.x, y: min.y },
+      ];
+      for (let i = 0; i < 4; i++) {
+        const a = corners[i];
+        const b = corners[(i + 1) % 4];
+        const intersection = intersectionBetweenTwoLines(
+          { a: positionA, b: positionB },
+          { a, b },
+        );
+        if (intersection === null) {
+          // The intersection does not exist.
+          continue;
+        }
+        if (
+          distancePointToLineSegment(intersection, {
+            a: positionA,
+            b: positionB,
+          }) > EPS
+        ) {
+          // The intersection is outside of the segment.
+          continue;
+        }
+        if (isPointInAABB({ point: intersection, min, max, slack: EPS })) {
+          inside.push(element.id);
+          continue elementLoop;
+        }
+      }
     }
   }
   return inside;
