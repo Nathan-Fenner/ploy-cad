@@ -4,6 +4,7 @@ import {
   distanceBetweenPoints,
   intersectionBetweenLineAndCircle,
   intersectionBetweenTwoCircles,
+  intersectionBetweenTwoLines,
   pointAdd,
 } from "../geometry/vector";
 import { PointID, SketchState, XY } from "../state/AppState";
@@ -215,6 +216,26 @@ export function applyConstraint(sketch: SketchState): {
               position: closestIntersection,
             });
           }
+        }
+      }
+    }
+
+    for (const { point, a, b } of database.getFacts({ geom: "line" })) {
+      for (const { a: a2, b: b2 } of database.getFacts({
+        geom: "line",
+        point,
+      })) {
+        const intersection = intersectionBetweenTwoLines(
+          { a, b },
+          { a: a2, b: b2 },
+        );
+        if (intersection !== null) {
+          database.addFact({
+            geom: "fixed",
+            INDEX_IGNORE: "position",
+            point,
+            position: intersection,
+          });
         }
       }
     }
