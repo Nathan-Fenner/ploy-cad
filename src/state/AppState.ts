@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   distanceBetweenPoints,
   dotProduct,
@@ -58,12 +59,12 @@ export type XY = { readonly x: number; readonly y: number };
 
 export type View = { readonly center: XY; readonly size: number };
 
-export type SketchElement =
-  | SketchElementPoint
-  | SketchElementLine
-  | SketchElementConstraintFixed
-  | SketchElementConstraintAxisAligned
-  | SketchElementConstraintDistance;
+export type SketchElement<Tag = unknown> =
+  | SketchElementPoint<Tag>
+  | SketchElementLine<Tag>
+  | SketchElementConstraintFixed<Tag>
+  | SketchElementConstraintAxisAligned<Tag>
+  | SketchElementConstraintDistance<Tag>;
 export type SketchElementID = SketchElement["id"];
 
 export type TypeCorrespondingToSketchElementID<ID> =
@@ -77,8 +78,13 @@ type TypeCorrespondingToSketchElementIDHelper<ID, T> = T extends {
 /**
  * The ID of a point.
  */
-export class PointID extends ID {
-  __point: void = undefined;
+export class PointID<Tag = unknown> extends ID {
+  readonly __point: void = undefined;
+  readonly __tag: Tag = undefined as any;
+
+  public castTag<NewTag>(_oldTag: Tag, _newTag: NewTag): PointID<NewTag> {
+    return this as any;
+  }
 }
 
 /**
@@ -133,20 +139,20 @@ export class ConstraintDistanceID extends ID {
 /**
  * A movable point in the sketch.
  */
-export type SketchElementPoint = {
+export type SketchElementPoint<Tag = unknown> = {
   sketchElement: "SketchElementPoint";
-  id: PointID;
+  id: PointID<Tag>;
   position: XY;
 };
 
 /**
  * A line joining two points.
  */
-export type SketchElementLine = {
+export type SketchElementLine<Tag = unknown> = {
   sketchElement: "SketchElementLine";
   id: LineID;
-  endpointA: PointID;
-  endpointB: PointID;
+  endpointA: PointID<Tag>;
+  endpointB: PointID<Tag>;
 };
 
 const getElementCacheMap = new WeakMap<
@@ -188,19 +194,19 @@ export function getPointPosition(app: AppState, point: PointID): XY {
   return getElement(app, point).position;
 }
 
-export type SketchElementConstraintFixed = {
+export type SketchElementConstraintFixed<Tag = unknown> = {
   sketchElement: "SketchElementConstraintFixed";
   id: ConstraintFixedID;
-  point: PointID;
+  point: PointID<Tag>;
   position: XY;
 };
 
-export type SketchElementConstraintAxisAligned = {
+export type SketchElementConstraintAxisAligned<Tag = unknown> = {
   sketchElement: "SketchElementConstraintAxisAligned";
   axis: "horizontal" | "vertical";
   id: ConstraintAxisAlignedID;
-  pointA: PointID;
-  pointB: PointID;
+  pointA: PointID<Tag>;
+  pointB: PointID<Tag>;
 };
 
 export function computeConstraintDistanceParameters({
@@ -241,11 +247,11 @@ export function computeConstraintDistanceHandlePosition({
   );
 }
 
-export type SketchElementConstraintDistance = {
+export type SketchElementConstraintDistance<Tag = unknown> = {
   sketchElement: "SketchElementConstraintDistance";
   id: ConstraintDistanceID;
-  pointA: PointID;
-  pointB: PointID;
+  pointA: PointID<Tag>;
+  pointB: PointID<Tag>;
   distance: number /** TODO: Replace this with a formula */;
 
   cosmetic: {

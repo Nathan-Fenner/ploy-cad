@@ -16,6 +16,7 @@ import {
   isConstraintAxisAlignedID,
   isLineID,
   isPointID,
+  SketchElement,
 } from "./AppState";
 import {
   EPS,
@@ -46,7 +47,8 @@ export type AppAction =
   | AppActionSketchCreateConstraintDistance
   | AppActionSketchMovePoint
   | AppActionSketchDelete
-  | AppActionSketchUpdateConstraint;
+  | AppActionSketchUpdateConstraint
+  | AppActionSketchMergePoints;
 
 export type AppActionUndo = {
   action: "UNDO";
@@ -152,6 +154,11 @@ export type AppActionSketchUpdateConstraint = {
   action: "SKETCH_UPDATE_CONSTRAINT";
   dimensionID: ConstraintDistanceID;
   newDistance: number;
+};
+
+export type AppActionSketchMergePoints = {
+  action: "SKETCH_MERGE_POINTS";
+  points: readonly PointID[];
 };
 
 const SELECT_NEAR_THRESHOLD = 0.015;
@@ -921,6 +928,23 @@ export function applyAppActionImplementation(
           }
         }
       }
+      if (action.key === "x") {
+        if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
+          const points = [...app.controls.activeSketchTool.selected].filter(
+            isPointID,
+          );
+          if (
+            points.length === 2 &&
+            app.controls.activeSketchTool.selected.size === 2
+          ) {
+            // There were exactly 2 points selected.
+            return applyAppAction(app, {
+              action: "SKETCH_MERGE_POINTS",
+              points,
+            });
+          }
+        }
+      }
       return app;
     }
     case "SKETCH_CREATE_POINT": {
@@ -1154,6 +1178,116 @@ export function applyAppActionImplementation(
             return !isDeleted(sketchElement.id);
           }),
         },
+      };
+    }
+    case "SKETCH_MERGE_POINTS": {
+      if (action.points.length <= 1) {
+        return app;
+      }
+      const targetPoint = action.points[0];
+      const renamedPoints = new Set(action.points.slice(1));
+
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "merge points",
+      });
+
+      const renamePoint = (p: PointID): PointID<"renamed"> => {
+        if (renamedPoints.has(p)) {
+          return targetPoint.castTag(null, "renamed");
+        }
+        return p.castTag(null, "renamed");
+      };
+
+      return {
+        ...app,
+        sketch: applyConstraint({
+          ...app.sketch,
+          sketchElements: app.sketch.sketchElements
+            .filter((sketchElement) => {
+              if (
+                sketchElement.sketchElement === "SketchElementPoint" &&
+                renamedPoints.has(sketchElement.id)
+              ) {
+                return false;
+              }
+              return true;
+            })
+            .flatMap((sketchElement): SketchElement<"renamed">[] => {
+              switch (sketchElement.sketchElement) {
+                case "SketchElementPoint":
+                  return [
+                    {
+                      ...sketchElement,
+                      id: renamePoint(sketchElement.id),
+                    },
+                  ];
+                case "SketchElementLine":
+                  if (
+                    renamePoint(sketchElement.endpointA) ===
+                    renamePoint(sketchElement.endpointB)
+                  ) {
+                    // This line becomes trivial.
+                    return [];
+                  }
+                  return [
+                    {
+                      ...sketchElement,
+                      endpointA: renamePoint(sketchElement.endpointA),
+                      endpointB: renamePoint(sketchElement.endpointB),
+                    },
+                  ];
+                case "SketchElementConstraintAxisAligned": {
+                  if (
+                    renamePoint(sketchElement.pointA) ===
+                    renamePoint(sketchElement.pointB)
+                  ) {
+                    // The constraint becomes trivial.
+                    return [];
+                  }
+                  return [
+                    {
+                      ...sketchElement,
+                      pointA: renamePoint(sketchElement.pointA),
+                      pointB: renamePoint(sketchElement.pointB),
+                    },
+                  ];
+                }
+                case "SketchElementConstraintDistance": {
+                  if (
+                    renamePoint(sketchElement.pointA) ===
+                    renamePoint(sketchElement.pointB)
+                  ) {
+                    // The constraint becomes trivial.
+                    return [];
+                  }
+                  return [
+                    {
+                      ...sketchElement,
+                      pointA: renamePoint(sketchElement.pointA),
+                      pointB: renamePoint(sketchElement.pointB),
+                    },
+                  ];
+                }
+                case "SketchElementConstraintFixed": {
+                  return [
+                    {
+                      ...sketchElement,
+                      point: renamePoint(sketchElement.point),
+                    },
+                  ];
+                }
+              }
+
+              return assertUnreachable(
+                sketchElement,
+                `merge points: unhandled element ${JSON.stringify(
+                  sketchElement,
+                )}`,
+              );
+            }),
+        }).updated,
       };
     }
   }
