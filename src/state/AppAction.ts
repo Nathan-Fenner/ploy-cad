@@ -17,6 +17,8 @@ import {
   isLineID,
   isPointID,
   SketchElement,
+  isConstraintPointOnLineID,
+  ConstraintPointOnLineID,
 } from "./AppState";
 import {
   EPS,
@@ -45,6 +47,7 @@ export type AppAction =
   | AppActionSketchCreateFixedConstraint
   | AppActionSketchCreateConstraintAxisAligned
   | AppActionSketchCreateConstraintDistance
+  | AppActionSketchCreateConstraintPointOnLine
   | AppActionSketchMovePoint
   | AppActionSketchDelete
   | AppActionSketchUpdateConstraint
@@ -137,6 +140,13 @@ export type AppActionSketchCreateConstraintDistance = {
   offset: number;
   t: number;
   distance: number;
+};
+
+export type AppActionSketchCreateConstraintPointOnLine = {
+  action: "SKETCH_CREATE_CONSTRAINT_POINT_ON_LINE";
+  id: ConstraintPointOnLineID;
+  point: PointID;
+  line: LineID;
 };
 
 export type AppActionSketchMovePoint = {
@@ -928,21 +938,37 @@ export function applyAppActionImplementation(
           }
         }
       }
-      if (action.key === "x") {
-        if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
-          const points = [...app.controls.activeSketchTool.selected].filter(
-            isPointID,
-          );
-          if (
-            points.length === 2 &&
-            app.controls.activeSketchTool.selected.size === 2
-          ) {
-            // There were exactly 2 points selected.
-            return applyAppAction(app, {
-              action: "SKETCH_MERGE_POINTS",
-              points,
-            });
-          }
+      if (
+        action.key === "x" &&
+        app.controls.activeSketchTool.sketchTool === "TOOL_SELECT"
+      ) {
+        const selectedElements = app.controls.activeSketchTool.selected;
+        const selectedPoints = [...selectedElements].filter(isPointID);
+        const selectedLines = [...selectedElements].filter(isLineID);
+
+        if (
+          selectedPoints.length === 2 &&
+          app.controls.activeSketchTool.selected.size === 2
+        ) {
+          // There were exactly 2 points selected.
+          return applyAppAction(app, {
+            action: "SKETCH_MERGE_POINTS",
+            points: selectedPoints,
+          });
+        }
+
+        if (
+          selectedPoints.length === 1 &&
+          selectedLines.length === 1 &&
+          selectedElements.size === 2
+        ) {
+          // There is exactly 1 line and 1 point selected.
+          return applyAppAction(app, {
+            action: "SKETCH_CREATE_CONSTRAINT_POINT_ON_LINE",
+            id: new ConstraintPointOnLineID(ID.uniqueID()),
+            point: selectedPoints[0],
+            line: selectedLines[0],
+          });
         }
       }
       return app;
@@ -1069,6 +1095,29 @@ export function applyAppActionImplementation(
         }).updated,
       };
     }
+    case "SKETCH_CREATE_CONSTRAINT_POINT_ON_LINE": {
+      // TODO: Verify that the point and line exists
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "create distance dimension",
+      });
+      return {
+        ...app,
+        sketch: applyConstraint({
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementConstraintPointOnLine",
+              id: action.id,
+              point: action.point,
+              line: action.line,
+            },
+          ],
+        }).updated,
+      };
+    }
     case "SKETCH_UPDATE_CONSTRAINT": {
       app = applyAppAction(app, {
         action: "PUSH_TO_UNDO_STACK",
@@ -1142,6 +1191,9 @@ export function applyAppActionImplementation(
         if (toDelete.has(id)) {
           return true;
         }
+        if (isPointID(id)) {
+          return false;
+        }
         if (isLineID(id)) {
           for (const endpoint of [
             getElement(app, id).endpointA,
@@ -1151,6 +1203,7 @@ export function applyAppActionImplementation(
               return true;
             }
           }
+          return false;
         }
         if (isConstraintFixedID(id)) {
           return isDeleted(getElement(app, id).point);
@@ -1167,7 +1220,13 @@ export function applyAppActionImplementation(
             isDeleted(getElement(app, id).pointB)
           );
         }
-        return false;
+        if (isConstraintPointOnLineID(id)) {
+          return (
+            isDeleted(getElement(app, id).point) ||
+            isDeleted(getElement(app, id).line)
+          );
+        }
+        return assertUnreachable(id, "...");
       };
 
       return {
@@ -1271,6 +1330,22 @@ export function applyAppActionImplementation(
                   ];
                 }
                 case "SketchElementConstraintFixed": {
+                  return [
+                    {
+                      ...sketchElement,
+                      point: renamePoint(sketchElement.point),
+                    },
+                  ];
+                }
+                case "SketchElementConstraintPointOnLine": {
+                  const involvedPoints = new Set([
+                    renamePoint(sketchElement.point),
+                    renamePoint(getElement(app, sketchElement.line).endpointA),
+                    renamePoint(getElement(app, sketchElement.line).endpointB),
+                  ]);
+                  if (involvedPoints.size < 3) {
+                    return [];
+                  }
                   return [
                     {
                       ...sketchElement,

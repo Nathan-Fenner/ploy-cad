@@ -64,7 +64,8 @@ export type SketchElement<Tag = unknown> =
   | SketchElementLine<Tag>
   | SketchElementConstraintFixed<Tag>
   | SketchElementConstraintAxisAligned<Tag>
-  | SketchElementConstraintDistance<Tag>;
+  | SketchElementConstraintDistance<Tag>
+  | SketchElementConstraintPointOnLine<Tag>;
 export type SketchElementID = SketchElement["id"];
 
 export type TypeCorrespondingToSketchElementID<ID> =
@@ -124,6 +125,12 @@ export function isConstraintDistanceID(
   return id instanceof ConstraintDistanceID;
 }
 
+export function isConstraintPointOnLineID(
+  id: SketchElementID,
+): id is ConstraintPointOnLineID {
+  return id instanceof ConstraintPointOnLineID;
+}
+
 export class ConstraintFixedID extends ID {
   __constraintFixed: void = undefined;
 }
@@ -134,6 +141,10 @@ export class ConstraintAxisAlignedID extends ID {
 
 export class ConstraintDistanceID extends ID {
   __constraintDistance: void = undefined;
+}
+
+export class ConstraintPointOnLineID extends ID {
+  __constraintPointOnLine: void = undefined;
 }
 
 /**
@@ -182,7 +193,14 @@ export function getElement<ID extends SketchElementID>(
   app: AppState,
   id: ID,
 ): TypeCorrespondingToSketchElementID<ID> {
-  const cache = getElementCache(app.sketch);
+  return getSketchElement(app.sketch, id);
+}
+
+export function getSketchElement<ID extends SketchElementID>(
+  sketch: SketchState,
+  id: ID,
+): TypeCorrespondingToSketchElementID<ID> {
+  const cache = getElementCache(sketch);
   if (!cache.has(id)) {
     throw new Error(`the application has no sketch element '${id}'`);
   }
@@ -207,6 +225,13 @@ export type SketchElementConstraintAxisAligned<Tag = unknown> = {
   id: ConstraintAxisAlignedID;
   pointA: PointID<Tag>;
   pointB: PointID<Tag>;
+};
+
+export type SketchElementConstraintPointOnLine<Tag = unknown> = {
+  sketchElement: "SketchElementConstraintPointOnLine";
+  id: ConstraintPointOnLineID;
+  point: PointID<Tag>;
+  line: LineID;
 };
 
 export function computeConstraintDistanceParameters({

@@ -7,7 +7,7 @@ import {
   intersectionBetweenTwoLines,
   pointAdd,
 } from "../geometry/vector";
-import { PointID, SketchState, XY } from "../state/AppState";
+import { PointID, SketchState, XY, getSketchElement } from "../state/AppState";
 import { FactDatabase } from "./database";
 
 type GeomFact =
@@ -16,7 +16,8 @@ type GeomFact =
   | GeomFactOnCircle
   | GeomFactVertical
   | GeomFactHorizontal
-  | GeomFactDistance;
+  | GeomFactDistance
+  | GeomFactCollinear;
 type GeomFactFixed = {
   INDEX_IGNORE: "position"; // Ensures that there cannot be multiple facts for the same point.
 
@@ -53,6 +54,11 @@ type GeomFactDistance = {
   point1: PointID;
   point2: PointID;
   distance: number;
+};
+
+type GeomFactCollinear = {
+  geom: "collinear";
+  points: readonly PointID[];
 };
 
 export function applyConstraint(sketch: SketchState): {
@@ -101,6 +107,16 @@ export function applyConstraint(sketch: SketchState): {
           distance: element.distance,
         });
       }
+    }
+    if (element.sketchElement === "SketchElementConstraintPointOnLine") {
+      database.addFact({
+        geom: "collinear",
+        points: [
+          element.point,
+          getSketchElement(sketch, element.line).endpointA,
+          getSketchElement(sketch, element.line).endpointB,
+        ].sort((a, b) => a.toString().localeCompare(b.toString())),
+      });
     }
   }
 
@@ -235,6 +251,43 @@ export function applyConstraint(sketch: SketchState): {
             INDEX_IGNORE: "position",
             point,
             position: intersection,
+          });
+        }
+      }
+    }
+
+    for (const { points } of database.getFacts({ geom: "collinear" })) {
+      const fixedOnLine: XY[] = [];
+      const addFixed = (p: XY): void => {
+        if (fixedOnLine.length >= 2) {
+          // The line already has enough points; adding more will just make this slower.
+          return;
+        }
+        if (
+          fixedOnLine.some(
+            (existing) => distanceBetweenPoints(existing, p) < EPS,
+          )
+        ) {
+          // This point is already in the same location as another on the line.
+          return;
+        }
+        fixedOnLine.push(p);
+      };
+      // First, check to see if there are 2+ different fixed points already on this line:
+      for (const p of points) {
+        const fixed = database.getFacts({ geom: "fixed", point: p });
+        for (const { position } of fixed) {
+          addFixed(position);
+        }
+      }
+      if (fixedOnLine.length >= 2) {
+        // There are at least 2 lines, so every point on this line can be fixed on this particular line.
+        for (const point of points) {
+          database.addFact({
+            geom: "line",
+            point,
+            a: fixedOnLine[0],
+            b: fixedOnLine[1],
           });
         }
       }
