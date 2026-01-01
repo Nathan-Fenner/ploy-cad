@@ -20,6 +20,7 @@ import {
   pointScale,
 } from "../geometry/vector";
 import { SketchLinearDimension } from "./SketchLinearDimension";
+import { displayDistance } from "./displayDistance";
 
 export function SketchView({
   appState,
@@ -94,7 +95,7 @@ export function SketchView({
                 b={getPointPosition(appState, element.pointB)}
                 t={element.cosmetic.t}
                 offset={element.cosmetic.offset}
-                label={String(element.distance)}
+                label={displayDistance(element.distance)}
                 dimensionStyle="selection-halo"
               />
             );
@@ -189,7 +190,7 @@ export function SketchView({
               b={b}
               t={element.cosmetic.t}
               offset={element.cosmetic.offset}
-              label={String(element.distance)}
+              label={displayDistance(element.distance)}
             />
           );
         }
