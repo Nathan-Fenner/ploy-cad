@@ -6,6 +6,10 @@ export function distanceBetweenPoints(a: XY, b: XY): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
+export function midpointBetweenPoints(a: XY, b: XY): XY {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
 export function dotProduct(p: XY, q: XY): number {
   return p.x * q.x + p.y * q.y;
 }
@@ -106,6 +110,40 @@ export function intersectionBetweenTwoLines(
     return null;
   }
   return pointAdd(line2.a, pointScale(forward2, t));
+}
+
+export function intersectionBetweenTwoLineSegments(
+  line1: { a: XY; b: XY },
+  line2: { a: XY; b: XY },
+): XY | null {
+  const hit = intersectionBetweenTwoLines(line1, line2);
+  if (hit === null) {
+    return null;
+  }
+  // if it's very close to an endpoint, return that
+  for (const p of [line1.a, line1.b, line2.a, line2.b]) {
+    if (distanceBetweenPoints(p, hit) < EPS) {
+      return p;
+    }
+  }
+
+  if (distanceBetweenPoints(line1.a, line1.b) < EPS) {
+    // This line is degenerate, so the point cannot be elsewhere.
+    return null;
+  }
+
+  const delta1 = pointSubtract(hit, line1.a);
+  const delta2 = pointSubtract(line1.b, hit);
+  const properDelta = pointSubtract(line1.b, line1.a);
+
+  if (dotProduct(delta1, properDelta) < 0) {
+    return null;
+  }
+  if (dotProduct(delta2, properDelta) < 0) {
+    return null;
+  }
+
+  return hit;
 }
 
 export function intersectionBetweenLineAndCircle(

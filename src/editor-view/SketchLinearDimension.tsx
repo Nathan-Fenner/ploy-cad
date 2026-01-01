@@ -1,10 +1,13 @@
-import { memo, useContext } from "react";
+import { memo, useContext, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_SKETCH_CONSTRAINT,
   COLOR_SKETCH_SELECT_HALO,
 } from "../palette/colors";
 import { XY } from "../state/AppState";
 import {
+  distanceBetweenPoints,
+  EPS,
+  intersectionBetweenTwoLineSegments,
   pointAdd,
   pointNormalize,
   pointScale,
@@ -28,6 +31,38 @@ const EXTENSION_LINE_EXTRA = { world: 10 };
 export const SketchLinearDimension = memo(
   ({ a, b, t, offset, label, dimensionStyle = "normal" }: SketchPointProps) => {
     const pixelSize = useContext(PixelSize);
+
+    const [textBounds, setTextBounds] = useState<{
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    } | null>(null);
+
+    const labelTextRef = useRef<SVGTextElement | null>(null);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useLayoutEffect(() => {
+      if (labelTextRef.current === null && textBounds !== null) {
+        setTextBounds(null);
+        return;
+      } else if (labelTextRef.current !== null) {
+        const bbox = labelTextRef.current.getBBox();
+        if (
+          textBounds?.left !== bbox.x ||
+          textBounds?.top !== bbox.y ||
+          textBounds?.width !== bbox.width ||
+          textBounds?.height !== bbox.height
+        ) {
+          setTextBounds({
+            left: bbox.x,
+            top: bbox.y,
+            width: bbox.width,
+            height: bbox.height,
+          });
+        }
+      }
+    });
 
     const direction = pointSubtract(b, a);
     const alignMark = pointScale(direction, t);
@@ -68,6 +103,77 @@ export const SketchLinearDimension = memo(
 
     const arrowLength = 18;
     const arrowWidth = 3;
+
+    const linesToDraw = (() => {
+      let lines: Array<{ a: XY; b: XY }> = [];
+
+      lines.push({
+        a: ptDimA,
+        b: ptDimB,
+      });
+
+      // Lines can be cut and/or filtered out by boxes.
+      if (textBounds !== null) {
+        const isInBox = (p: XY): boolean => {
+          const dx = Math.abs(textBounds.left + textBounds.width / 2 - p.x);
+          const dy = Math.abs(textBounds.top + textBounds.height / 2 - p.y);
+
+          return (
+            Math.max(dx - textBounds.width / 2, dy - textBounds.height / 2) <
+            EPS
+          );
+        };
+
+        const textTopLeft = {
+          x: textBounds.left,
+          y: textBounds.top,
+        };
+        const textTopRight = {
+          x: textBounds.left + textBounds.width,
+          y: textBounds.top,
+        };
+        const textBottomLeft = {
+          x: textBounds.left,
+          y: textBounds.top + textBounds.height,
+        };
+        const textBottomRight = {
+          x: textBounds.left + textBounds.width,
+          y: textBounds.top + textBounds.height,
+        };
+
+        for (const segmentSide of [
+          { a: textBottomLeft, b: textBottomRight },
+          { a: textBottomRight, b: textTopRight },
+          { a: textTopLeft, b: textTopRight },
+          { a: textBottomLeft, b: textTopLeft },
+        ]) {
+          lines = lines.flatMap((line) => {
+            const hit = intersectionBetweenTwoLineSegments(line, segmentSide);
+            if (hit === null) {
+              return [line];
+            }
+            return [
+              { a: line.a, b: hit },
+              { a: hit, b: line.b },
+            ];
+          });
+
+          lines = lines.filter((line) => {
+            if (distanceBetweenPoints(line.a, line.b) < EPS) {
+              return false;
+            }
+            if (isInBox(line.a) && isInBox(line.b)) {
+              return false;
+            }
+            return true;
+          });
+        }
+
+        return lines;
+      }
+
+      return lines;
+    })();
 
     // Points for the arrow heads.
     const ptDimAArrow1 = pointAdd(
@@ -134,16 +240,6 @@ export const SketchLinearDimension = memo(
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
-        <line
-          vectorEffect="non-scaling-stroke"
-          stroke={color}
-          x1={ptDimA.x}
-          y1={ptDimA.y}
-          x2={ptDimB.x}
-          y2={ptDimB.y}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-        />
 
         <line
           vectorEffect="non-scaling-stroke"
@@ -186,9 +282,23 @@ export const SketchLinearDimension = memo(
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
+        {linesToDraw.map((line, index) => (
+          <line
+            key={index}
+            vectorEffect="non-scaling-stroke"
+            stroke={color}
+            x1={line.a.x}
+            y1={line.a.y}
+            x2={line.b.x}
+            y2={line.b.y}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+        ))}
 
         {dimensionStyle === "normal" && (
           <text
+            ref={labelTextRef}
             x={labelPosition.x}
             y={labelPosition.y}
             fill={color}
