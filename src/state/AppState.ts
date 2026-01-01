@@ -65,7 +65,7 @@ export type SketchElement<Tag = unknown> =
   | SketchElementArc<Tag>
   | SketchElementConstraintFixed<Tag>
   | SketchElementConstraintAxisAligned<Tag>
-  | SketchElementConstraintDistance<Tag>
+  | SketchElementConstraintPointPointDistance<Tag>
   | SketchElementConstraintPointOnLine<Tag>
   | SketchElementConstraintPointOnArc<Tag>;
 export type SketchElementID = SketchElement["id"];
@@ -312,8 +312,8 @@ export function computeConstraintDistanceHandlePosition({
   );
 }
 
-export type SketchElementConstraintDistance<Tag = unknown> = {
-  sketchElement: "SketchElementConstraintDistance";
+export type SketchElementConstraintPointPointDistance<Tag = unknown> = {
+  sketchElement: "SketchElementConstraintPointPointDistance";
   id: ConstraintDistanceID;
   pointA: PointID<Tag>;
   pointB: PointID<Tag>;

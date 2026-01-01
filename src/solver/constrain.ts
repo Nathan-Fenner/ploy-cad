@@ -133,7 +133,7 @@ export function applyConstraint(sketch: SketchState): {
         point2: element.pointA,
       });
     }
-    if (element.sketchElement === "SketchElementConstraintDistance") {
+    if (element.sketchElement === "SketchElementConstraintPointPointDistance") {
       for (const [pa, pb] of [
         [element.pointA, element.pointB],
         [element.pointB, element.pointA],

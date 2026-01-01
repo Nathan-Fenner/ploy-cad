@@ -103,7 +103,10 @@ export function SketchView({
               />
             );
           }
-          if (element.sketchElement === "SketchElementConstraintDistance") {
+          if (
+            element.sketchElement ===
+            "SketchElementConstraintPointPointDistance"
+          ) {
             return (
               <SketchLinearDimension
                 key={element.id.toString()}
@@ -216,7 +219,9 @@ export function SketchView({
             />
           );
         }
-        if (element.sketchElement === "SketchElementConstraintDistance") {
+        if (
+          element.sketchElement === "SketchElementConstraintPointPointDistance"
+        ) {
           const a = getPointPosition(appState, element.pointA);
           const b = getPointPosition(appState, element.pointB);
           return (

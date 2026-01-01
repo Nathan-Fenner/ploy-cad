@@ -206,7 +206,7 @@ export function findClosestGeometryNear(
   let closestDimension: { id: ConstraintDistanceID; distance: number } | null =
     null;
   for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementConstraintDistance") {
+    if (element.sketchElement === "SketchElementConstraintPointPointDistance") {
       const elementHandlePosition = computeConstraintDistanceHandlePosition({
         a: getPointPosition(app, element.pointA),
         b: getPointPosition(app, element.pointB),
@@ -1205,7 +1205,7 @@ export function applyAppActionImplementation(
           sketchElements: [
             ...app.sketch.sketchElements,
             {
-              sketchElement: "SketchElementConstraintDistance",
+              sketchElement: "SketchElementConstraintPointPointDistance",
               id: action.id,
               pointA: action.pointA,
               pointB: action.pointB,
@@ -1307,7 +1307,7 @@ export function applyAppActionImplementation(
               };
             } else if (
               sketchElement.sketchElement ===
-                "SketchElementConstraintDistance" &&
+                "SketchElementConstraintPointPointDistance" &&
               sketchElement.id === moveGeometry
             ) {
               const parameters = computeConstraintDistanceParameters({
@@ -1497,7 +1497,7 @@ export function applyAppActionImplementation(
                     },
                   ];
                 }
-                case "SketchElementConstraintDistance": {
+                case "SketchElementConstraintPointPointDistance": {
                   if (
                     renamePoint(sketchElement.pointA) ===
                     renamePoint(sketchElement.pointB)
