@@ -1,6 +1,6 @@
 import {
   AppState,
-  ConstraintDistanceID,
+  ConstraintPointPointDistanceID,
   ConstraintFixedID,
   ConstraintAxisAlignedID,
   LineID,
@@ -11,7 +11,7 @@ import {
   computeConstraintDistanceParameters,
   getElement,
   getPointPosition,
-  isConstraintDistanceID,
+  isConstraintPointPointDistanceID,
   isConstraintFixedID,
   isConstraintAxisAlignedID,
   isLineID,
@@ -23,14 +23,20 @@ import {
   ArcID,
   isConstraintPointOnArcID,
   ConstraintPointOnArcID,
+  isConstraintPointLineDistanceID,
+  ConstraintPointLineDistanceID,
 } from "./AppState";
 import {
   EPS,
   distanceBetweenPoints,
   distancePointToArc,
   distancePointToLineSegment,
+  dotProduct,
   intersectionBetweenTwoLines,
   pointAdd,
+  pointNormalize,
+  pointProjectOntoLine,
+  pointSubtract,
 } from "../geometry/vector";
 import { ID } from "../id";
 import { SketchToolState } from "./ToolState";
@@ -53,6 +59,7 @@ export type AppAction =
   | AppActionSketchCreateFixedConstraint
   | AppActionSketchCreateConstraintAxisAligned
   | AppActionSketchCreateConstraintDistance
+  | AppActionSketchCreateConstraintPointLineDistance
   | AppActionSketchCreateConstraintPointOnLine
   | AppActionSketchCreateConstraintPointOnArc
   | AppActionSketchMovePoint
@@ -149,9 +156,19 @@ export type AppActionSketchCreateConstraintAxisAligned = {
 
 export type AppActionSketchCreateConstraintDistance = {
   action: "SKETCH_CREATE_CONSTRAINT_DISTANCE";
-  id: ConstraintDistanceID;
+  id: ConstraintPointPointDistanceID;
   pointA: PointID;
   pointB: PointID;
+  offset: number;
+  t: number;
+  distance: number;
+};
+
+export type AppActionSketchCreateConstraintPointLineDistance = {
+  action: "AppActionSketchCreateConstraintPointLineDistance";
+  id: ConstraintPointLineDistanceID;
+  point: PointID;
+  line: LineID;
   offset: number;
   t: number;
   distance: number;
@@ -173,7 +190,10 @@ export type AppActionSketchCreateConstraintPointOnArc = {
 
 export type AppActionSketchMovePoint = {
   action: "SKETCH_MOVE_POINT";
-  point: PointID | ConstraintDistanceID;
+  point:
+    | PointID
+    | ConstraintPointPointDistanceID
+    | ConstraintPointLineDistanceID;
   toPosition: XY;
 };
 
@@ -184,7 +204,7 @@ export type AppActionSketchDelete = {
 
 export type AppActionSketchUpdateConstraint = {
   action: "SKETCH_UPDATE_CONSTRAINT";
-  dimensionID: ConstraintDistanceID;
+  dimensionID: ConstraintPointPointDistanceID;
   newDistance: number;
 };
 
@@ -203,13 +223,52 @@ export function findClosestGeometryNear(
   const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
 
   // (1/3) First the closest dimension, if any.
-  let closestDimension: { id: ConstraintDistanceID; distance: number } | null =
-    null;
+  let closestDimension: {
+    id: ConstraintPointPointDistanceID | ConstraintPointLineDistanceID;
+    distance: number;
+  } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementConstraintPointPointDistance") {
       const elementHandlePosition = computeConstraintDistanceHandlePosition({
         a: getPointPosition(app, element.pointA),
         b: getPointPosition(app, element.pointB),
+        t: element.cosmetic.t,
+        offset: element.cosmetic.offset,
+      });
+      const distanceToHandle = distanceBetweenPoints(
+        near,
+        elementHandlePosition,
+      );
+      if (distanceToHandle > MAX_NEAR_DISTANCE) {
+        continue;
+      }
+      if (
+        closestDimension === null ||
+        closestDimension.distance > distanceToHandle
+      ) {
+        closestDimension = { id: element.id, distance: distanceToHandle };
+      }
+    }
+
+    if (element.sketchElement === "SketchElementConstraintPointLineDistance") {
+      const point = getPointPosition(app, element.point);
+      const lineA = getPointPosition(
+        app,
+        getElement(app, element.line).endpointA,
+      );
+      const lineB = getPointPosition(
+        app,
+        getElement(app, element.line).endpointB,
+      );
+
+      const projected = pointProjectOntoLine(point, {
+        a: lineA,
+        b: lineB,
+      }).point;
+
+      const elementHandlePosition = computeConstraintDistanceHandlePosition({
+        a: point,
+        b: projected,
         t: element.cosmetic.t,
         offset: element.cosmetic.offset,
       });
@@ -694,12 +753,57 @@ export function applyAppActionImplementation(
           app,
           {
             action: "SKETCH_CREATE_CONSTRAINT_DISTANCE",
-            id: new ConstraintDistanceID(ID.uniqueID()),
+            id: new ConstraintPointPointDistanceID(ID.uniqueID()),
             pointA: tool.pointA,
             pointB: tool.pointB,
             t,
             offset,
             distance: distanceBetweenPoints(pointA, pointB),
+          },
+          {
+            action: "STATE_CHANGE_TOOL",
+            newTool: { sketchTool: "TOOL_NONE" }, // TODO: Edit the newly-created dimension
+          },
+        );
+      }
+      if (tool.sketchTool === "SketchToolCreatePointLineDistanceConstraint") {
+        const point = getPointPosition(app, tool.point);
+        const lineA = getPointPosition(
+          app,
+          getElement(app, tool.line).endpointA,
+        );
+        const lineB = getPointPosition(
+          app,
+          getElement(app, tool.line).endpointB,
+        );
+        const projected = pointProjectOntoLine(point, {
+          a: lineA,
+          b: lineB,
+        }).point;
+        const { offset, t } = computeConstraintDistanceParameters({
+          a: point,
+          b: projected,
+          labelPosition: action.at,
+        });
+
+        const delta = pointNormalize(pointSubtract(lineB, lineA));
+        const perpendicular = { x: -delta.y, y: delta.x };
+
+        const signedDistance = dotProduct(
+          perpendicular,
+          pointSubtract(point, projected),
+        );
+
+        return applyAppAction(
+          app,
+          {
+            action: "AppActionSketchCreateConstraintPointLineDistance",
+            id: new ConstraintPointLineDistanceID(ID.uniqueID()),
+            point: tool.point,
+            line: tool.line,
+            t,
+            offset,
+            distance: signedDistance,
           },
           {
             action: "STATE_CHANGE_TOOL",
@@ -742,7 +846,7 @@ export function applyAppActionImplementation(
           });
         } else if (
           action.isDouble &&
-          isConstraintDistanceID(nearbyGeometry.id) &&
+          isConstraintPointPointDistanceID(nearbyGeometry.id) &&
           tool.sketchTool === "TOOL_SELECT" &&
           tool.selected.has(nearbyGeometry.id)
         ) {
@@ -765,7 +869,10 @@ export function applyAppActionImplementation(
               geometry: nearbyGeometry.id,
             },
           });
-        } else if (isConstraintDistanceID(nearbyGeometry.id)) {
+        } else if (
+          isConstraintPointPointDistanceID(nearbyGeometry.id) ||
+          isConstraintPointLineDistanceID(nearbyGeometry.id)
+        ) {
           // The user clicked on a dimension -- allow them to move it.
           return applyAppAction(app, {
             action: "STATE_CHANGE_TOOL",
@@ -843,7 +950,9 @@ export function applyAppActionImplementation(
             toPosition: targetPosition,
           });
         } else if (
-          isConstraintDistanceID(app.controls.activeSketchTool.geometry)
+          isConstraintPointPointDistanceID(
+            app.controls.activeSketchTool.geometry,
+          )
         ) {
           const dimension = getElement(
             app,
@@ -854,6 +963,47 @@ export function applyAppActionImplementation(
             computeConstraintDistanceHandlePosition({
               a: getPointPosition(app, dimension.pointA),
               b: getPointPosition(app, dimension.pointB),
+              t: dimension.cosmetic.t,
+              offset: dimension.cosmetic.offset,
+            });
+
+          const targetPosition = pointAdd(
+            dimensionHandlePosition,
+            action.delta,
+          );
+          return applyAppAction(app, {
+            action: "SKETCH_MOVE_POINT",
+            point: app.controls.activeSketchTool.geometry,
+            toPosition: targetPosition,
+          });
+        } else if (
+          isConstraintPointLineDistanceID(
+            app.controls.activeSketchTool.geometry,
+          )
+        ) {
+          const dimension = getElement(
+            app,
+            app.controls.activeSketchTool.geometry,
+          );
+
+          const point = getPointPosition(app, dimension.point);
+          const lineA = getPointPosition(
+            app,
+            getElement(app, dimension.line).endpointA,
+          );
+          const lineB = getPointPosition(
+            app,
+            getElement(app, dimension.line).endpointB,
+          );
+          const projected = pointProjectOntoLine(point, {
+            a: lineA,
+            b: lineB,
+          }).point;
+
+          const dimensionHandlePosition =
+            computeConstraintDistanceHandlePosition({
+              a: point,
+              b: projected,
               t: dimension.cosmetic.t,
               offset: dimension.cosmetic.offset,
             });
@@ -998,29 +1148,43 @@ export function applyAppActionImplementation(
 
       if (action.key === "d") {
         if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
-          const points = [
-            ...new Set(
-              [...app.controls.activeSketchTool.selected].flatMap((element) => {
-                if (isPointID(element)) {
-                  return [element];
-                }
-                if (isLineID(element)) {
-                  return [
-                    getElement(app, element).endpointA,
-                    getElement(app, element).endpointB,
-                  ];
-                }
-                return [];
-              }),
-            ),
-          ];
-          if (points.length === 2) {
+          const selected = [...app.controls.activeSketchTool.selected];
+
+          const points = selected.filter(isPointID);
+          const lines = selected.filter(isLineID);
+
+          if (points.length === 2 && selected.length === 2) {
             return applyAppAction(app, {
               action: "STATE_CHANGE_TOOL",
               newTool: {
                 sketchTool: "TOOL_CREATE_DISTANCE_CONSTRAINT",
                 pointA: points[0],
                 pointB: points[1],
+              },
+            });
+          }
+          if (lines.length === 1 && selected.length === 1) {
+            return applyAppAction(app, {
+              action: "STATE_CHANGE_TOOL",
+              newTool: {
+                sketchTool: "TOOL_CREATE_DISTANCE_CONSTRAINT",
+                pointA: getElement(app, lines[0]).endpointA,
+                pointB: getElement(app, lines[0]).endpointB,
+              },
+            });
+          }
+
+          if (
+            points.length === 1 &&
+            lines.length === 1 &&
+            selected.length === 2
+          ) {
+            return applyAppAction(app, {
+              action: "STATE_CHANGE_TOOL",
+              newTool: {
+                sketchTool: "SketchToolCreatePointLineDistanceConstraint",
+                point: points[0],
+                line: lines[0],
               },
             });
           }
@@ -1219,6 +1383,34 @@ export function applyAppActionImplementation(
         }).updated,
       };
     }
+    case "AppActionSketchCreateConstraintPointLineDistance": {
+      // TODO: Verify that the point and line exists
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "create point-line distance dimension",
+      });
+      return {
+        ...app,
+        sketch: applyConstraint({
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementConstraintPointLineDistance",
+              id: action.id,
+              point: action.point,
+              line: action.line,
+              distance: action.distance,
+              cosmetic: {
+                t: action.t,
+                offset: action.offset,
+              },
+            },
+          ],
+        }).updated,
+      };
+    }
     case "SKETCH_CREATE_CONSTRAINT_POINT_ON_LINE": {
       // TODO: Verify that the point and line exists
       app = applyAppAction(app, {
@@ -1291,7 +1483,10 @@ export function applyAppActionImplementation(
         key: `move-point-${action.point}`,
         debugName: "move point",
       });
-      const moveGeometry: PointID | ConstraintDistanceID = action.point;
+      const moveGeometry:
+        | PointID
+        | ConstraintPointPointDistanceID
+        | ConstraintPointLineDistanceID = action.point;
       return {
         ...app,
         sketch: applyConstraint({
@@ -1313,6 +1508,33 @@ export function applyAppActionImplementation(
               const parameters = computeConstraintDistanceParameters({
                 a: getPointPosition(app, sketchElement.pointA),
                 b: getPointPosition(app, sketchElement.pointB),
+                labelPosition: action.toPosition,
+              });
+              return {
+                ...sketchElement,
+                cosmetic: parameters,
+              };
+            } else if (
+              sketchElement.sketchElement ===
+                "SketchElementConstraintPointLineDistance" &&
+              sketchElement.id === moveGeometry
+            ) {
+              const point = getPointPosition(app, sketchElement.point);
+              const lineA = getPointPosition(
+                app,
+                getElement(app, sketchElement.line).endpointA,
+              );
+              const lineB = getPointPosition(
+                app,
+                getElement(app, sketchElement.line).endpointB,
+              );
+              const projected = pointProjectOntoLine(point, {
+                a: lineA,
+                b: lineB,
+              }).point;
+              const parameters = computeConstraintDistanceParameters({
+                a: point,
+                b: projected,
                 labelPosition: action.toPosition,
               });
               return {
@@ -1373,10 +1595,16 @@ export function applyAppActionImplementation(
             isDeleted(getElement(app, id).pointB)
           );
         }
-        if (isConstraintDistanceID(id)) {
+        if (isConstraintPointPointDistanceID(id)) {
           return (
             isDeleted(getElement(app, id).pointA) ||
             isDeleted(getElement(app, id).pointB)
+          );
+        }
+        if (isConstraintPointLineDistanceID(id)) {
+          return (
+            isDeleted(getElement(app, id).point) ||
+            isDeleted(getElement(app, id).line)
           );
         }
         if (isConstraintPointOnLineID(id)) {
@@ -1510,6 +1738,23 @@ export function applyAppActionImplementation(
                       ...sketchElement,
                       pointA: renamePoint(sketchElement.pointA),
                       pointB: renamePoint(sketchElement.pointB),
+                    },
+                  ];
+                }
+                case "SketchElementConstraintPointLineDistance": {
+                  const line = getElement(app, sketchElement.line);
+                  const points = new Set([
+                    renamePoint(line.endpointA),
+                    renamePoint(line.endpointB),
+                    renamePoint(sketchElement.point),
+                  ]);
+                  if (points.size !== 3) {
+                    return [];
+                  }
+                  return [
+                    {
+                      ...sketchElement,
+                      point: renamePoint(sketchElement.point),
                     },
                   ];
                 }

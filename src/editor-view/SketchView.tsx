@@ -6,6 +6,7 @@ import {
   PointID,
   XY,
   computeConstraintDistanceParameters,
+  getElement,
   getPointPosition,
 } from "../state/AppState";
 import { findOrCreatePointNear, findPointNear } from "../state/AppAction";
@@ -17,6 +18,7 @@ import { applyConstraint } from "../solver/constrain";
 import {
   distanceBetweenPoints,
   pointAdd,
+  pointProjectOntoLine,
   pointScale,
 } from "../geometry/vector";
 import { SketchLinearDimension } from "./SketchLinearDimension";
@@ -112,6 +114,29 @@ export function SketchView({
                 key={element.id.toString()}
                 a={getPointPosition(appState, element.pointA)}
                 b={getPointPosition(appState, element.pointB)}
+                t={element.cosmetic.t}
+                offset={element.cosmetic.offset}
+                label={displayDistance(element.distance)}
+                dimensionStyle="selection-halo"
+              />
+            );
+          }
+          if (
+            element.sketchElement === "SketchElementConstraintPointLineDistance"
+          ) {
+            const line = getElement(appState, element.line);
+            const projected = pointProjectOntoLine(
+              getPointPosition(appState, element.point),
+              {
+                a: getPointPosition(appState, line.endpointA),
+                b: getPointPosition(appState, line.endpointB),
+              },
+            ).point;
+            return (
+              <SketchLinearDimension
+                key={element.id.toString()}
+                a={getPointPosition(appState, element.point)}
+                b={projected}
                 t={element.cosmetic.t}
                 offset={element.cosmetic.offset}
                 label={displayDistance(element.distance)}
@@ -229,6 +254,25 @@ export function SketchView({
               key={element.id.toString()}
               a={a}
               b={b}
+              t={element.cosmetic.t}
+              offset={element.cosmetic.offset}
+              label={displayDistance(element.distance)}
+            />
+          );
+        }
+        if (
+          element.sketchElement === "SketchElementConstraintPointLineDistance"
+        ) {
+          const line = getElement(appState, element.line);
+          const p = getPointPosition(appState, element.point);
+          const a = getPointPosition(appState, line.endpointA);
+          const b = getPointPosition(appState, line.endpointB);
+          const projected = pointProjectOntoLine(p, { a, b }).point;
+          return (
+            <SketchLinearDimension
+              key={element.id.toString()}
+              a={p}
+              b={projected}
               t={element.cosmetic.t}
               offset={element.cosmetic.offset}
               label={displayDistance(element.distance)}
@@ -357,6 +401,42 @@ export function SketchView({
             <SketchLinearDimension
               a={pointA}
               b={pointB}
+              t={t}
+              offset={offset}
+              label="..."
+            />
+          );
+        }
+
+        if (
+          sketchTool.sketchTool ===
+          "SketchToolCreatePointLineDistanceConstraint"
+        ) {
+          const point = getPointPosition(appState, sketchTool.point);
+          const lineA = getPointPosition(
+            appState,
+            getElement(appState, sketchTool.line).endpointA,
+          );
+          const lineB = getPointPosition(
+            appState,
+            getElement(appState, sketchTool.line).endpointB,
+          );
+
+          const projected = pointProjectOntoLine(point, {
+            a: lineA,
+            b: lineB,
+          }).point;
+
+          const { t, offset } = computeConstraintDistanceParameters({
+            a: point,
+            b: projected,
+            labelPosition: cursorAt,
+          });
+
+          return (
+            <SketchLinearDimension
+              a={point}
+              b={projected}
               t={t}
               offset={offset}
               label="..."

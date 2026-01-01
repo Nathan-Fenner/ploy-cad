@@ -66,6 +66,7 @@ export type SketchElement<Tag = unknown> =
   | SketchElementConstraintFixed<Tag>
   | SketchElementConstraintAxisAligned<Tag>
   | SketchElementConstraintPointPointDistance<Tag>
+  | SketchElementConstraintPointLineDistance<Tag>
   | SketchElementConstraintPointOnLine<Tag>
   | SketchElementConstraintPointOnArc<Tag>;
 export type SketchElementID = SketchElement["id"];
@@ -129,10 +130,16 @@ export function isConstraintAxisAlignedID(
   return id instanceof ConstraintAxisAlignedID;
 }
 
-export function isConstraintDistanceID(
+export function isConstraintPointPointDistanceID(
   id: SketchElementID,
-): id is ConstraintDistanceID {
-  return id instanceof ConstraintDistanceID;
+): id is ConstraintPointPointDistanceID {
+  return id instanceof ConstraintPointPointDistanceID;
+}
+
+export function isConstraintPointLineDistanceID(
+  id: SketchElementID,
+): id is ConstraintPointLineDistanceID {
+  return id instanceof ConstraintPointLineDistanceID;
 }
 
 export function isConstraintPointOnLineID(
@@ -155,8 +162,12 @@ export class ConstraintAxisAlignedID extends ID {
   __constraintAxisAligned: void = undefined;
 }
 
-export class ConstraintDistanceID extends ID {
-  __constraintDistance: void = undefined;
+export class ConstraintPointPointDistanceID extends ID {
+  __constraintPointPointDistance: void = undefined;
+}
+
+export class ConstraintPointLineDistanceID extends ID {
+  __constraintPointLineDistance: void = undefined;
 }
 
 export class ConstraintPointOnLineID extends ID {
@@ -314,9 +325,28 @@ export function computeConstraintDistanceHandlePosition({
 
 export type SketchElementConstraintPointPointDistance<Tag = unknown> = {
   sketchElement: "SketchElementConstraintPointPointDistance";
-  id: ConstraintDistanceID;
+  id: ConstraintPointPointDistanceID;
   pointA: PointID<Tag>;
   pointB: PointID<Tag>;
+  distance: number /** TODO: Replace this with a formula */;
+
+  cosmetic: {
+    /**
+     * The ratio along the line pointA-->pointB where the label is placed.
+     */
+    t: number;
+    /**
+     * The offset (in sketch units) of the label from the line.
+     */
+    offset: number;
+  };
+};
+
+export type SketchElementConstraintPointLineDistance<Tag = unknown> = {
+  sketchElement: "SketchElementConstraintPointLineDistance";
+  id: ConstraintPointLineDistanceID;
+  point: PointID<Tag>;
+  line: LineID;
   distance: number /** TODO: Replace this with a formula */;
 
   cosmetic: {

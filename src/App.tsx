@@ -13,7 +13,7 @@ import { Canvas } from "./canvas/Canvas";
 import {
   APP_STATE_INITIAL,
   AppState,
-  ConstraintDistanceID,
+  ConstraintPointPointDistanceID,
   View,
   XY,
   getElement,
@@ -205,7 +205,7 @@ function ModalEditDimensionValue({
 }: {
   appState: AppState;
   dispatch: (action: AppAction) => void;
-  dimensionID: ConstraintDistanceID;
+  dimensionID: ConstraintPointPointDistanceID;
   onClose: () => void;
 }) {
   const dimension = useMemo(() => {

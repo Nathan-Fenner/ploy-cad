@@ -1,4 +1,11 @@
-import { ConstraintDistanceID, PointID, SketchElementID, XY } from "./AppState";
+import {
+  ConstraintPointLineDistanceID,
+  ConstraintPointPointDistanceID,
+  LineID,
+  PointID,
+  SketchElementID,
+  XY,
+} from "./AppState";
 
 export type SketchToolState =
   | SketchToolNone
@@ -11,6 +18,7 @@ export type SketchToolState =
   | SketchToolSelect
   | SketchToolDragPoint
   | SketchToolCreateDistanceConstraint
+  | SketchToolCreatePointLineDistanceConstraint
   | SketchToolEditDimension;
 
 export type SketchToolNone = {
@@ -25,7 +33,10 @@ export type SketchToolSelect = {
 
 export type SketchToolDragPoint = {
   sketchTool: "TOOL_DRAG_POINT";
-  readonly geometry: PointID | ConstraintDistanceID;
+  readonly geometry:
+    | PointID
+    | ConstraintPointPointDistanceID
+    | ConstraintPointLineDistanceID;
 };
 
 export type SketchToolCreatePoint = {
@@ -60,8 +71,14 @@ export type SketchToolCreateDistanceConstraint = {
   pointB: PointID;
 };
 
+export type SketchToolCreatePointLineDistanceConstraint = {
+  sketchTool: "SketchToolCreatePointLineDistanceConstraint";
+  point: PointID;
+  line: LineID;
+};
+
 export type SketchToolEditDimension = {
   sketchTool: "TOOL_EDIT_DIMENSION";
-  dimension: ConstraintDistanceID;
+  dimension: ConstraintPointPointDistanceID;
   selected: ReadonlySet<SketchElementID>;
 };

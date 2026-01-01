@@ -28,6 +28,18 @@ export function pointProjectOntoLine(
   };
 }
 
+export function distancePointToInfiniteLine(
+  p: XY,
+  { a, b }: { a: XY; b: XY },
+): number {
+  if (distanceBetweenPoints(a, b) < EPS) {
+    return distanceBetweenPoints(p, a);
+  }
+
+  const projection = pointProjectOntoLine(p, { a, b });
+
+  return distanceBetweenPoints(p, projection.point);
+}
 export function distancePointToLineSegment(
   p: XY,
   { a, b }: { a: XY; b: XY },

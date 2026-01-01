@@ -6,6 +6,9 @@ import {
   intersectionBetweenTwoCircles,
   intersectionBetweenTwoLines,
   pointAdd,
+  pointNormalize,
+  pointScale,
+  pointSubtract,
 } from "../geometry/vector";
 import { PointID, SketchState, XY, getSketchElement } from "../state/AppState";
 import { FactDatabase } from "./database";
@@ -18,6 +21,7 @@ type GeomFact =
   | GeomFactVertical
   | GeomFactHorizontal
   | GeomFactDistance
+  | GeomFactPointLineDistance
   | GeomFactCollinear;
 type GeomFactFixed = {
   INDEX_IGNORE: "position"; // Ensures that there cannot be multiple facts for the same point.
@@ -60,6 +64,15 @@ type GeomFactDistance = {
 
   point1: PointID;
   point2: PointID;
+  distance: number;
+};
+
+type GeomFactPointLineDistance = {
+  geom: "point-line-distance";
+  INDEX_IGNORE: "distance";
+  point: PointID;
+  line1: PointID;
+  line2: PointID;
   distance: number;
 };
 
@@ -146,6 +159,25 @@ export function applyConstraint(sketch: SketchState): {
           distance: element.distance,
         });
       }
+    }
+    if (element.sketchElement === "SketchElementConstraintPointLineDistance") {
+      const line = getSketchElement(sketch, element.line);
+      database.addFact({
+        geom: "point-line-distance",
+        point: element.point,
+        line1: line.endpointA,
+        line2: line.endpointB,
+        distance: element.distance,
+        INDEX_IGNORE: "distance",
+      });
+      database.addFact({
+        geom: "point-line-distance",
+        point: element.point,
+        line1: line.endpointB,
+        line2: line.endpointA,
+        distance: -element.distance,
+        INDEX_IGNORE: "distance",
+      });
     }
     if (element.sketchElement === "SketchElementConstraintPointOnLine") {
       database.addFact({
@@ -299,6 +331,41 @@ export function applyConstraint(sketch: SketchState): {
             INDEX_IGNORE: "position",
             point,
             position: intersection,
+          });
+        }
+      }
+    }
+
+    for (const pointLineDistance of database.getFacts({
+      geom: "point-line-distance",
+    })) {
+      const line1 = database.getFacts({
+        geom: "fixed",
+        point: pointLineDistance.line1,
+      });
+      const line2 = database.getFacts({
+        geom: "fixed",
+        point: pointLineDistance.line2,
+      });
+
+      if (line1.length > 0 && line2.length > 0) {
+        const line1xy = line1[0].position;
+        const line2xy = line2[0].position;
+        if (distanceBetweenPoints(line1xy, line2xy) > EPS) {
+          // It's a signed distance.
+          const delta = pointNormalize(pointSubtract(line2xy, line1xy));
+          const perpendicular = pointScale(
+            { x: -delta.y, y: delta.x },
+            pointLineDistance.distance,
+          );
+          const offset1 = pointAdd(line1xy, perpendicular);
+          const offset2 = pointAdd(line2xy, perpendicular);
+
+          database.addFact({
+            geom: "line",
+            point: pointLineDistance.point,
+            a: offset1,
+            b: offset2,
           });
         }
       }
