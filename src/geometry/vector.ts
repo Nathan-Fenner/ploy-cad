@@ -49,12 +49,21 @@ export function distancePointToLineSegment(
   }
 }
 
-export function distancePointToArc(
-  p: XY,
-  { a, b, center }: { a: XY; b: XY; center: XY },
-): number {
+/**
+ * If `a` and `b` are non-equidistant to `center`, returns a modified center location that is equidistant to them.
+ * It attempts to be on the same side as the provided `center`.
+ */
+export function adjustedArcCenter({
+  a,
+  b,
+  center,
+}: {
+  a: XY;
+  b: XY;
+  center: XY;
+}): XY {
   if (distanceBetweenPoints(a, b) < EPS) {
-    return distanceBetweenPoints(a, p);
+    return center;
   }
   // Usually, these should be the same, but we need to choose
   // an arbitrary behavior if they're not.
@@ -64,10 +73,83 @@ export function distancePointToArc(
     distanceBetweenPoints(b, center),
   );
 
-  const radiusDifference = Math.abs(radius - distanceBetweenPoints(p, center));
+  // The 'true' center needs to be calculated now, in case the two endpoints were not equidistant from the center.
+  const midpoint = midpointBetweenPoints(a, b);
+  let perpendicular = {
+    x: b.y - midpoint.y,
+    y: -b.x + midpoint.x,
+  };
+  if (dotProduct(perpendicular, pointSubtract(center, midpoint)) < 0) {
+    perpendicular.x *= -1;
+    perpendicular.y *= -1;
+  }
+  perpendicular = pointNormalize(perpendicular);
 
-  // This is only true if the `p` is within the same sector as the arc.
-  return radiusDifference;
+  const t = Math.sqrt(
+    Math.max(0, radius ** 2 - distanceBetweenPoints(a, midpoint) ** 2),
+  );
+
+  // This point is distance `radius` from both endpoints.
+  return pointAdd(midpoint, pointScale(perpendicular, t));
+}
+
+/**
+ * An arc is drawn through a, b with radius max(dist(a, center), dist(b, center)).
+ * The arc is always "small" (less than 180 degrees) but will be either clockwise or
+ * counter-clockwise so that the 'center' is on the correct side.
+ */
+export function distancePointToArc(
+  p: XY,
+  { a, b, center }: { a: XY; b: XY; center: XY },
+): number {
+  if (distanceBetweenPoints(a, b) < EPS) {
+    return distanceBetweenPoints(a, p);
+  }
+
+  // Usually, these should be the same, but we need to choose
+  // an arbitrary behavior if they're not.
+  // Will probably need to adjust this in the future.
+  const radius = Math.max(
+    distanceBetweenPoints(a, center),
+    distanceBetweenPoints(b, center),
+  );
+
+  // This point is distance `radius` from both endpoints.
+  const adjustedCenter = adjustedArcCenter({ a, b, center });
+
+  if (distanceBetweenPoints(p, center) < EPS) {
+    // This is a degenerate case.
+    return radius;
+  }
+
+  let angleA = Math.atan2(a.y - adjustedCenter.y, a.x - adjustedCenter.x);
+  let angleB = Math.atan2(b.y - adjustedCenter.y, b.x - adjustedCenter.x);
+  // Ensure that we have a "small" (maybe negative) arc between A and B.
+  if (angleB < angleA) {
+    angleB += Math.PI * 2;
+  }
+  if (angleB - angleA > Math.PI) {
+    angleA += Math.PI * 2;
+  }
+
+  const angleLow = Math.min(angleA, angleB);
+  const angleHigh = Math.max(angleA, angleB);
+
+  let angleP = Math.atan2(p.y - adjustedCenter.y, p.x - adjustedCenter.x);
+  if (angleP < angleLow) {
+    angleP += Math.PI * 2;
+  }
+  if (angleP < angleLow) {
+    angleP += Math.PI * 2;
+  }
+
+  if (angleP >= angleLow - EPS && angleP <= angleHigh + EPS) {
+    // Compute the distance to the complete circle.
+    return Math.abs(radius - distanceBetweenPoints(p, adjustedCenter));
+  }
+
+  // It's closest to one of the two endpoints.
+  return Math.min(distanceBetweenPoints(p, a), distanceBetweenPoints(p, b));
 }
 
 export function pointAdd(a: XY, b: XY): XY {
