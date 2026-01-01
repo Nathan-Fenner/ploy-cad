@@ -13,6 +13,7 @@ import { FactDatabase } from "./database";
 type GeomFact =
   | GeomFactFixed
   | GeomFactOnLine
+  | GeomFactEquidistant
   | GeomFactOnCircle
   | GeomFactVertical
   | GeomFactHorizontal
@@ -30,6 +31,12 @@ type GeomFactOnLine = {
   point: PointID;
   a: XY;
   b: XY;
+};
+type GeomFactEquidistant = {
+  geom: "equidistant";
+  center: PointID;
+  point1: PointID;
+  point2: PointID;
 };
 type GeomFactOnCircle = {
   geom: "circle";
@@ -69,10 +76,42 @@ export function applyConstraint(sketch: SketchState): {
 
   const originalLocations = new Map<PointID, XY>();
 
+  /**
+   * If the distance between two points is constrained, return it.
+   * Otherwise, return null.
+   */
+  const getKnownDistance = (a: PointID, b: PointID): number | null => {
+    if (a === b) {
+      return 0;
+    }
+    const fixedA = database.getFacts({ geom: "fixed", point: a });
+    const fixedB = database.getFacts({ geom: "fixed", point: b });
+    if (fixedA.length > 0 && fixedB.length > 0) {
+      return distanceBetweenPoints(fixedA[0].position, fixedB[0].position);
+    }
+    const d12 = database.getFacts({ geom: "distance", point1: a, point2: b });
+    if (d12.length > 0) {
+      return d12[0].distance;
+    }
+    const d21 = database.getFacts({ geom: "distance", point1: b, point2: a });
+    if (d21.length > 0) {
+      return d21[0].distance;
+    }
+    return null;
+  };
+
   // Fill the database using the sketch constraints.
   for (const element of sketch.sketchElements) {
     if (element.sketchElement === "SketchElementPoint") {
       originalLocations.set(element.id, element.position);
+    }
+    if (element.sketchElement === "SketchElementArc") {
+      database.addFact({
+        geom: "equidistant",
+        center: element.center,
+        point1: element.endpointA,
+        point2: element.endpointB,
+      });
     }
     if (element.sketchElement === "SketchElementConstraintFixed") {
       database.addFact({
@@ -290,6 +329,30 @@ export function applyConstraint(sketch: SketchState): {
             b: fixedOnLine[1],
           });
         }
+      }
+    }
+
+    for (const equidistant of database.getFacts({ geom: "equidistant" })) {
+      const r1 = getKnownDistance(equidistant.center, equidistant.point1);
+      const r2 = getKnownDistance(equidistant.center, equidistant.point2);
+
+      if (r1 !== null && r2 === null) {
+        database.addFact({
+          geom: "distance",
+          point1: equidistant.center,
+          point2: equidistant.point2,
+          distance: r1,
+          INDEX_IGNORE: "distance",
+        });
+      }
+      if (r1 === null && r2 !== null) {
+        database.addFact({
+          geom: "distance",
+          point1: equidistant.center,
+          point2: equidistant.point1,
+          distance: r2,
+          INDEX_IGNORE: "distance",
+        });
       }
     }
 
