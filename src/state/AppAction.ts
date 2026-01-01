@@ -21,6 +21,8 @@ import {
   ConstraintPointOnLineID,
   isArcID,
   ArcID,
+  isConstraintPointOnArcID,
+  ConstraintPointOnArcID,
 } from "./AppState";
 import {
   EPS,
@@ -52,6 +54,7 @@ export type AppAction =
   | AppActionSketchCreateConstraintAxisAligned
   | AppActionSketchCreateConstraintDistance
   | AppActionSketchCreateConstraintPointOnLine
+  | AppActionSketchCreateConstraintPointOnArc
   | AppActionSketchMovePoint
   | AppActionSketchDelete
   | AppActionSketchUpdateConstraint
@@ -159,6 +162,13 @@ export type AppActionSketchCreateConstraintPointOnLine = {
   id: ConstraintPointOnLineID;
   point: PointID;
   line: LineID;
+};
+
+export type AppActionSketchCreateConstraintPointOnArc = {
+  action: "SKETCH_CREATE_CONSTRAINT_POINT_ON_ARC";
+  id: ConstraintPointOnArcID;
+  point: PointID;
+  arc: ArcID;
 };
 
 export type AppActionSketchMovePoint = {
@@ -1023,11 +1033,9 @@ export function applyAppActionImplementation(
         const selectedElements = app.controls.activeSketchTool.selected;
         const selectedPoints = [...selectedElements].filter(isPointID);
         const selectedLines = [...selectedElements].filter(isLineID);
+        const selectedArcs = [...selectedElements].filter(isArcID);
 
-        if (
-          selectedPoints.length === 2 &&
-          app.controls.activeSketchTool.selected.size === 2
-        ) {
+        if (selectedPoints.length === 2 && selectedElements.size === 2) {
           // There were exactly 2 points selected.
           return applyAppAction(app, {
             action: "SKETCH_MERGE_POINTS",
@@ -1046,6 +1054,20 @@ export function applyAppActionImplementation(
             id: new ConstraintPointOnLineID(ID.uniqueID()),
             point: selectedPoints[0],
             line: selectedLines[0],
+          });
+        }
+
+        if (
+          selectedPoints.length === 1 &&
+          selectedArcs.length === 1 &&
+          selectedElements.size === 2
+        ) {
+          // There is exactly 1 arc and 1 point selected.
+          return applyAppAction(app, {
+            action: "SKETCH_CREATE_CONSTRAINT_POINT_ON_ARC",
+            id: new ConstraintPointOnArcID(ID.uniqueID()),
+            point: selectedPoints[0],
+            arc: selectedArcs[0],
           });
         }
       }
@@ -1202,7 +1224,7 @@ export function applyAppActionImplementation(
       app = applyAppAction(app, {
         action: "PUSH_TO_UNDO_STACK",
         key: null,
-        debugName: "create distance dimension",
+        debugName: "create point-line coincidence constraint",
       });
       return {
         ...app,
@@ -1215,6 +1237,29 @@ export function applyAppActionImplementation(
               id: action.id,
               point: action.point,
               line: action.line,
+            },
+          ],
+        }).updated,
+      };
+    }
+    case "SKETCH_CREATE_CONSTRAINT_POINT_ON_ARC": {
+      // TODO: Verify that the point and arc exists
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "create point-arc coincidence constraint",
+      });
+      return {
+        ...app,
+        sketch: applyConstraint({
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementConstraintPointOnArc",
+              id: action.id,
+              point: action.point,
+              arc: action.arc,
             },
           ],
         }).updated,
@@ -1339,6 +1384,10 @@ export function applyAppActionImplementation(
             isDeleted(getElement(app, id).point) ||
             isDeleted(getElement(app, id).line)
           );
+        }
+        if (isConstraintPointOnArcID(id)) {
+          const arc = getElement(app, id);
+          return isDeleted(arc.point) || isDeleted(arc.arc);
         }
         return assertUnreachable(id, "...");
       };
@@ -1479,6 +1528,25 @@ export function applyAppActionImplementation(
                     renamePoint(getElement(app, sketchElement.line).endpointB),
                   ]);
                   if (involvedPoints.size < 3) {
+                    return [];
+                  }
+                  return [
+                    {
+                      ...sketchElement,
+                      point: renamePoint(sketchElement.point),
+                    },
+                  ];
+                }
+                case "SketchElementConstraintPointOnArc": {
+                  const arc = getElement(app, sketchElement.arc);
+
+                  const involvedPoints = new Set([
+                    renamePoint(sketchElement.point),
+                    renamePoint(arc.endpointA),
+                    renamePoint(arc.endpointB),
+                    renamePoint(arc.center),
+                  ]);
+                  if (involvedPoints.size < 4) {
                     return [];
                   }
                   return [

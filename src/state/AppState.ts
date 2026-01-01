@@ -66,7 +66,8 @@ export type SketchElement<Tag = unknown> =
   | SketchElementConstraintFixed<Tag>
   | SketchElementConstraintAxisAligned<Tag>
   | SketchElementConstraintDistance<Tag>
-  | SketchElementConstraintPointOnLine<Tag>;
+  | SketchElementConstraintPointOnLine<Tag>
+  | SketchElementConstraintPointOnArc<Tag>;
 export type SketchElementID = SketchElement["id"];
 
 export type TypeCorrespondingToSketchElementID<ID> =
@@ -140,6 +141,12 @@ export function isConstraintPointOnLineID(
   return id instanceof ConstraintPointOnLineID;
 }
 
+export function isConstraintPointOnArcID(
+  id: SketchElementID,
+): id is ConstraintPointOnArcID {
+  return id instanceof ConstraintPointOnArcID;
+}
+
 export class ConstraintFixedID extends ID {
   __constraintFixed: void = undefined;
 }
@@ -154,6 +161,10 @@ export class ConstraintDistanceID extends ID {
 
 export class ConstraintPointOnLineID extends ID {
   __constraintPointOnLine: void = undefined;
+}
+
+export class ConstraintPointOnArcID extends ID {
+  __constraintPointOnArc: void = undefined;
 }
 
 /**
@@ -256,6 +267,13 @@ export type SketchElementConstraintPointOnLine<Tag = unknown> = {
   line: LineID;
 };
 
+export type SketchElementConstraintPointOnArc<Tag = unknown> = {
+  sketchElement: "SketchElementConstraintPointOnArc";
+  id: ConstraintPointOnArcID;
+  point: PointID<Tag>;
+  arc: ArcID;
+};
+
 export function computeConstraintDistanceParameters({
   a,
   b,
@@ -324,68 +342,11 @@ export const APP_STATE_INITIAL: AppState = {
         position: { x: 0, y: 0 },
       },
       {
-        sketchElement: "SketchElementPoint",
-        id: new PointID("A"),
-        position: { x: 40, y: 40 },
-      },
-      {
-        sketchElement: "SketchElementPoint",
-        id: new PointID("B"),
-        position: { x: 40, y: -60 },
-      },
-      {
-        sketchElement: "SketchElementPoint",
-        id: new PointID("C"),
-        position: { x: 0, y: 50 },
-      },
-      {
-        sketchElement: "SketchElementPoint",
-        id: new PointID("D"),
-        position: { x: 50, y: 0 },
-      },
-      {
-        sketchElement: "SketchElementLine",
-        id: new LineID("AB"),
-        endpointA: new PointID("A"),
-        endpointB: new PointID("B"),
-      },
-      {
-        sketchElement: "SketchElementArc",
-        id: new ArcID("CD"),
-        endpointA: new PointID("C"),
-        endpointB: new PointID("D"),
-        center: new PointID("Origin"),
-      },
-      {
-        sketchElement: "SketchElementConstraintFixed",
-        id: new ConstraintFixedID("C_A"),
-        point: new PointID("A"),
-        position: { x: 40, y: 40 },
-      },
-      {
         sketchElement: "SketchElementConstraintFixed",
         id: new ConstraintFixedID("C_Origin"),
         point: new PointID("Origin"),
         position: { x: 0, y: 0 },
       },
-      {
-        sketchElement: "SketchElementConstraintAxisAligned",
-        id: new ConstraintAxisAlignedID("C_AB_VERT"),
-        axis: "vertical",
-        pointA: new PointID("A"),
-        pointB: new PointID("B"),
-      },
-      // {
-      //   sketchElement: "SketchElementConstraintDistance",
-      //   id: new ConstraintDistanceID("C_DIST"),
-      //   pointA: new PointID("A"),
-      //   pointB: new PointID("B"),
-      //   distance: 100,
-      //   cosmetic: {
-      //     t: 0.75,
-      //     offset: 25,
-      //   },
-      // },
     ],
   },
   undoState: {

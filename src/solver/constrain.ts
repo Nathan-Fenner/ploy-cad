@@ -157,6 +157,15 @@ export function applyConstraint(sketch: SketchState): {
         ].sort((a, b) => a.toString().localeCompare(b.toString())),
       });
     }
+    if (element.sketchElement === "SketchElementConstraintPointOnArc") {
+      const arcSketch = getSketchElement(sketch, element.arc);
+      database.addFact({
+        geom: "equidistant",
+        point1: arcSketch.endpointA,
+        point2: element.point,
+        center: arcSketch.center,
+      });
+    }
   }
 
   // Infer new constraints
