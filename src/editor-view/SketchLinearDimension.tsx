@@ -57,39 +57,136 @@ export const SketchLinearDimension = memo(
 
     const strokeWidth = dimensionStyle === "normal" ? undefined : 15;
 
+    const ptGapA = pointAdd(a, extensionGap);
+    const ptEndA = pointAdd(a, extensionEnd);
+
+    const ptGapB = pointAdd(b, extensionGap);
+    const ptEndB = pointAdd(b, extensionEnd);
+
+    const ptDimA = pointAdd(a, perpendicularOffset);
+    const ptDimB = pointAdd(b, perpendicularOffset);
+
+    const arrowLength = 18;
+    const arrowWidth = 3;
+
+    // Points for the arrow heads.
+    const ptDimAArrow1 = pointAdd(
+      ptDimA,
+      pointScale(
+        pointAdd(
+          pointScale(pointNormalize(direction), arrowLength),
+          pointScale(perpendicular, arrowWidth),
+        ),
+        pixelSize,
+      ),
+    );
+    const ptDimAArrow2 = pointAdd(
+      ptDimA,
+      pointScale(
+        pointAdd(
+          pointScale(pointNormalize(direction), arrowLength),
+          pointScale(perpendicular, -arrowWidth),
+        ),
+        pixelSize,
+      ),
+    );
+
+    const ptDimBArrow1 = pointAdd(
+      ptDimB,
+      pointScale(
+        pointAdd(
+          pointScale(pointNormalize(direction), -arrowLength),
+          pointScale(perpendicular, arrowWidth),
+        ),
+        pixelSize,
+      ),
+    );
+    const ptDimBArrow2 = pointAdd(
+      ptDimB,
+      pointScale(
+        pointAdd(
+          pointScale(pointNormalize(direction), -arrowLength),
+          pointScale(perpendicular, -arrowWidth),
+        ),
+        pixelSize,
+      ),
+    );
+
     return (
       <g className="linear-dimension">
-        EXTENSION_LINE_GAP
         <line
           vectorEffect="non-scaling-stroke"
           stroke={color}
-          x1={pointAdd(a, extensionGap).x}
-          y1={pointAdd(a, extensionGap).y}
-          x2={pointAdd(a, extensionEnd).x}
-          y2={pointAdd(a, extensionEnd).y}
+          x1={ptGapA.x}
+          y1={ptGapA.y}
+          x2={ptEndA.x}
+          y2={ptEndA.y}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
         <line
           vectorEffect="non-scaling-stroke"
           stroke={color}
-          x1={pointAdd(b, extensionGap).x}
-          y1={pointAdd(b, extensionGap).y}
-          x2={pointAdd(b, extensionEnd).x}
-          y2={pointAdd(b, extensionEnd).y}
+          x1={ptGapB.x}
+          y1={ptGapB.y}
+          x2={ptEndB.x}
+          y2={ptEndB.y}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
         <line
           vectorEffect="non-scaling-stroke"
           stroke={color}
-          x1={pointAdd(a, perpendicularOffset).x}
-          y1={pointAdd(a, perpendicularOffset).y}
-          x2={pointAdd(b, perpendicularOffset).x}
-          y2={pointAdd(b, perpendicularOffset).y}
+          x1={ptDimA.x}
+          y1={ptDimA.y}
+          x2={ptDimB.x}
+          y2={ptDimB.y}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
+
+        <line
+          vectorEffect="non-scaling-stroke"
+          stroke={color}
+          x1={ptDimA.x}
+          y1={ptDimA.y}
+          x2={ptDimAArrow1.x}
+          y2={ptDimAArrow1.y}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+        <line
+          vectorEffect="non-scaling-stroke"
+          stroke={color}
+          x1={ptDimA.x}
+          y1={ptDimA.y}
+          x2={ptDimAArrow2.x}
+          y2={ptDimAArrow2.y}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+
+        <line
+          vectorEffect="non-scaling-stroke"
+          stroke={color}
+          x1={ptDimB.x}
+          y1={ptDimB.y}
+          x2={ptDimBArrow1.x}
+          y2={ptDimBArrow1.y}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+        <line
+          vectorEffect="non-scaling-stroke"
+          stroke={color}
+          x1={ptDimB.x}
+          y1={ptDimB.y}
+          x2={ptDimBArrow2.x}
+          y2={ptDimBArrow2.y}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+
         {dimensionStyle === "normal" && (
           <text
             x={labelPosition.x}
