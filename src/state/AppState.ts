@@ -62,6 +62,7 @@ export type View = { readonly center: XY; readonly size: number };
 export type SketchElement<Tag = unknown> =
   | SketchElementPoint<Tag>
   | SketchElementLine<Tag>
+  | SketchElementArc<Tag>
   | SketchElementConstraintFixed<Tag>
   | SketchElementConstraintAxisAligned<Tag>
   | SketchElementConstraintDistance<Tag>
@@ -95,6 +96,10 @@ export class LineID extends ID {
   __line: void = undefined;
 }
 
+export class ArcID extends ID {
+  __arc: void = undefined;
+}
+
 export class ConstraintID extends ID {
   __constraint: void = undefined;
 }
@@ -105,6 +110,10 @@ export function isPointID(id: SketchElementID): id is PointID {
 
 export function isLineID(id: SketchElementID): id is LineID {
   return id instanceof LineID;
+}
+
+export function isArcID(id: SketchElementID): id is ArcID {
+  return id instanceof ArcID;
 }
 
 export function isConstraintFixedID(
@@ -164,6 +173,19 @@ export type SketchElementLine<Tag = unknown> = {
   id: LineID;
   endpointA: PointID<Tag>;
   endpointB: PointID<Tag>;
+};
+
+/**
+ * An arc joining two points, with the specified center.
+ * There is an implicit assumption that the two points
+ * are equidistant from the center of the circle.
+ */
+export type SketchElementArc<Tag = unknown> = {
+  sketchElement: "SketchElementArc";
+  id: ArcID;
+  endpointA: PointID<Tag>;
+  endpointB: PointID<Tag>;
+  center: PointID<Tag>;
 };
 
 const getElementCacheMap = new WeakMap<
@@ -298,6 +320,11 @@ export const APP_STATE_INITIAL: AppState = {
     sketchElements: [
       {
         sketchElement: "SketchElementPoint",
+        id: new PointID("Origin"),
+        position: { x: 0, y: 0 },
+      },
+      {
+        sketchElement: "SketchElementPoint",
         id: new PointID("A"),
         position: { x: 40, y: 40 },
       },
@@ -307,16 +334,39 @@ export const APP_STATE_INITIAL: AppState = {
         position: { x: 40, y: -60 },
       },
       {
+        sketchElement: "SketchElementPoint",
+        id: new PointID("C"),
+        position: { x: 0, y: 50 },
+      },
+      {
+        sketchElement: "SketchElementPoint",
+        id: new PointID("D"),
+        position: { x: 50, y: 0 },
+      },
+      {
         sketchElement: "SketchElementLine",
         id: new LineID("AB"),
         endpointA: new PointID("A"),
         endpointB: new PointID("B"),
       },
       {
+        sketchElement: "SketchElementArc",
+        id: new ArcID("CD"),
+        endpointA: new PointID("C"),
+        endpointB: new PointID("D"),
+        center: new PointID("Origin"),
+      },
+      {
         sketchElement: "SketchElementConstraintFixed",
         id: new ConstraintFixedID("C_A"),
         point: new PointID("A"),
         position: { x: 40, y: 40 },
+      },
+      {
+        sketchElement: "SketchElementConstraintFixed",
+        id: new ConstraintFixedID("C_Origin"),
+        point: new PointID("Origin"),
+        position: { x: 0, y: 0 },
       },
       {
         sketchElement: "SketchElementConstraintAxisAligned",

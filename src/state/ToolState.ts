@@ -5,6 +5,9 @@ export type SketchToolState =
   | SketchToolCreatePoint
   | SketchToolCreateLine
   | SketchToolCreateLineFromPoint
+  | SketchToolCreateArc
+  | SketchToolCreateArcFromPoint
+  | SketchToolCreateArcFromTwoPoints
   | SketchToolSelect
   | SketchToolDragPoint
   | SketchToolCreateDistanceConstraint
@@ -35,6 +38,20 @@ export type SketchToolCreateLine = {
 export type SketchToolCreateLineFromPoint = {
   sketchTool: "TOOL_CREATE_LINE_FROM_POINT";
   fromPoint: PointID;
+};
+
+export type SketchToolCreateArc = {
+  sketchTool: "TOOL_CREATE_ARC";
+};
+export type SketchToolCreateArcFromPoint = {
+  sketchTool: "TOOL_CREATE_ARC_FROM_POINT";
+  endpointA: PointID;
+};
+
+export type SketchToolCreateArcFromTwoPoints = {
+  sketchTool: "TOOL_CREATE_ARC_FROM_TWO_POINTS";
+  endpointA: PointID;
+  endpointB: PointID;
 };
 
 export type SketchToolCreateDistanceConstraint = {

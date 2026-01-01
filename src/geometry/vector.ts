@@ -48,6 +48,28 @@ export function distancePointToLineSegment(
     return distanceBetweenPoints(p, b);
   }
 }
+
+export function distancePointToArc(
+  p: XY,
+  { a, b, center }: { a: XY; b: XY; center: XY },
+): number {
+  if (distanceBetweenPoints(a, b) < EPS) {
+    return distanceBetweenPoints(a, p);
+  }
+  // Usually, these should be the same, but we need to choose
+  // an arbitrary behavior if they're not.
+  // Will probably need to adjust this in the future.
+  const radius = Math.max(
+    distanceBetweenPoints(a, center),
+    distanceBetweenPoints(b, center),
+  );
+
+  const radiusDifference = Math.abs(radius - distanceBetweenPoints(p, center));
+
+  // This is only true if the `p` is within the same sector as the arc.
+  return radiusDifference;
+}
+
 export function pointAdd(a: XY, b: XY): XY {
   return {
     x: a.x + b.x,

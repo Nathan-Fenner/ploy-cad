@@ -19,10 +19,13 @@ import {
   SketchElement,
   isConstraintPointOnLineID,
   ConstraintPointOnLineID,
+  isArcID,
+  ArcID,
 } from "./AppState";
 import {
   EPS,
   distanceBetweenPoints,
+  distancePointToArc,
   distancePointToLineSegment,
   intersectionBetweenTwoLines,
   pointAdd,
@@ -44,6 +47,7 @@ export type AppAction =
   | AppActionInterfaceKeyDown
   | AppActionSketchCreatePoint
   | AppActionSketchCreateLine
+  | AppActionSketchCreateArc
   | AppActionSketchCreateFixedConstraint
   | AppActionSketchCreateConstraintAxisAligned
   | AppActionSketchCreateConstraintDistance
@@ -115,6 +119,14 @@ export type AppActionSketchCreateLine = {
   id: LineID;
   endpointA: PointID;
   endpointB: PointID;
+};
+
+export type AppActionSketchCreateArc = {
+  action: "SKETCH_CREATE_ARC";
+  id: ArcID;
+  endpointA: PointID;
+  endpointB: PointID;
+  center: PointID;
 };
 
 export type AppActionSketchCreateFixedConstraint = {
@@ -229,7 +241,7 @@ export function findClosestGeometryNear(
   }
 
   // (3/3) Find the closest line segment.
-  let closestLine: { id: LineID; distance: number } | null = null;
+  let closestLine: { id: LineID | ArcID; distance: number } | null = null;
   for (const element of app.sketch.sketchElements) {
     if (element.sketchElement === "SketchElementLine") {
       const distanceToLine = distancePointToLineSegment(near, {
@@ -241,6 +253,19 @@ export function findClosestGeometryNear(
       }
       if (closestLine === null || closestLine.distance > distanceToLine) {
         closestLine = { id: element.id, distance: distanceToLine };
+      }
+    }
+    if (element.sketchElement === "SketchElementArc") {
+      const distanceToArc = distancePointToArc(near, {
+        a: getPointPosition(app, element.endpointA),
+        b: getPointPosition(app, element.endpointB),
+        center: getPointPosition(app, element.center),
+      });
+      if (distanceToArc > MAX_NEAR_DISTANCE) {
+        continue;
+      }
+      if (closestLine === null || closestLine.distance > distanceToArc) {
+        closestLine = { id: element.id, distance: distanceToArc };
       }
     }
   }
@@ -600,6 +625,53 @@ export function applyAppActionImplementation(
           },
         );
       }
+      if (tool.sketchTool === "TOOL_CREATE_ARC") {
+        // Find or create a point near the mouse.
+        const { app: newApp, id } = findOrCreatePointNear(app, action.at);
+        app = newApp;
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: { sketchTool: "TOOL_CREATE_ARC_FROM_POINT", endpointA: id },
+        });
+      }
+      if (tool.sketchTool === "TOOL_CREATE_ARC_FROM_POINT") {
+        const endpointA = tool.endpointA;
+        const { app: newApp, id: toPoint } = findOrCreatePointNear(
+          app,
+          action.at,
+        );
+        app = newApp;
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: {
+            sketchTool: "TOOL_CREATE_ARC_FROM_TWO_POINTS",
+            endpointA,
+            endpointB: toPoint,
+          },
+        });
+      }
+      if (tool.sketchTool === "TOOL_CREATE_ARC_FROM_TWO_POINTS") {
+        const { endpointA, endpointB } = tool;
+        const { app: newApp, id: toPoint } = findOrCreatePointNear(
+          app,
+          action.at,
+        );
+        app = newApp;
+        return applyAppAction(
+          app,
+          {
+            action: "SKETCH_CREATE_ARC",
+            id: new ArcID(ID.uniqueID()),
+            endpointA,
+            endpointB,
+            center: toPoint,
+          },
+          {
+            action: "STATE_CHANGE_TOOL",
+            newTool: { sketchTool: "TOOL_NONE" },
+          },
+        );
+      }
       if (tool.sketchTool === "TOOL_CREATE_DISTANCE_CONSTRAINT") {
         const pointA = getPointPosition(app, tool.pointA);
         const pointB = getPointPosition(app, tool.pointB);
@@ -814,6 +886,12 @@ export function applyAppActionImplementation(
           newTool: { sketchTool: "TOOL_CREATE_LINE" },
         });
       }
+      if (action.key === "a") {
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: { sketchTool: "TOOL_CREATE_ARC" },
+        });
+      }
       if (action.key === "Delete") {
         if (app.controls.activeSketchTool.sketchTool === "TOOL_SELECT") {
           return applyAppAction(
@@ -1018,6 +1096,30 @@ export function applyAppActionImplementation(
         },
       };
     }
+    case "SKETCH_CREATE_ARC": {
+      // TODO: Verify that `endpointA` and `endpointB` already exist, and that `id` does not.
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: "create arc",
+      });
+      return {
+        ...app,
+        sketch: {
+          ...app.sketch,
+          sketchElements: [
+            ...app.sketch.sketchElements,
+            {
+              sketchElement: "SketchElementArc",
+              id: action.id,
+              endpointA: action.endpointA,
+              endpointB: action.endpointB,
+              center: action.center,
+            },
+          ],
+        },
+      };
+    }
     case "SKETCH_CREATE_FIXED_CONSTRAINT": {
       // TODO: Verify that the point exists
       app = applyAppAction(app, {
@@ -1205,6 +1307,18 @@ export function applyAppActionImplementation(
           }
           return false;
         }
+        if (isArcID(id)) {
+          for (const endpoint of [
+            getElement(app, id).endpointA,
+            getElement(app, id).endpointB,
+            getElement(app, id).center,
+          ]) {
+            if (isDeleted(endpoint)) {
+              return true;
+            }
+          }
+          return false;
+        }
         if (isConstraintFixedID(id)) {
           return isDeleted(getElement(app, id).point);
         }
@@ -1297,6 +1411,27 @@ export function applyAppActionImplementation(
                       endpointB: renamePoint(sketchElement.endpointB),
                     },
                   ];
+                case "SketchElementArc": {
+                  const renamedA = renamePoint(sketchElement.endpointA);
+                  const renamedB = renamePoint(sketchElement.endpointB);
+                  const renamedC = renamePoint(sketchElement.center);
+                  // If any of these 3 become equal, the arc becomes trivial.
+                  if (
+                    renamedA === renamedB ||
+                    renamedA === renamedC ||
+                    renamedB === renamedC
+                  ) {
+                    return [];
+                  }
+                  return [
+                    {
+                      ...sketchElement,
+                      endpointA: renamedA,
+                      endpointB: renamedB,
+                      center: renamedC,
+                    },
+                  ];
+                }
                 case "SketchElementConstraintAxisAligned": {
                   if (
                     renamePoint(sketchElement.pointA) ===

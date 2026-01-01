@@ -1,22 +1,12 @@
 import { memo } from "react";
 import {
-  COLOR_SKETCH_LINE_STROKE,
-  COLOR_SKETCH_PREVIEW,
   COLOR_SKETCH_FULLY_CONSTRAINED,
   COLOR_SKETCH_SELECTED,
-  COLOR_SKETCH_SELECT_HALO,
 } from "../palette/colors";
 import { XY } from "../state/AppState";
+import { COLOR_FROM_LINE_STYLE, LineStyle } from "./sketch-line-style";
 
-type LineStyle = "sketch" | "preview" | "selection-halo";
-
-const COLOR_FROM_LINE_STYLE: Record<LineStyle, string> = {
-  sketch: COLOR_SKETCH_LINE_STROKE,
-  preview: COLOR_SKETCH_PREVIEW,
-  "selection-halo": COLOR_SKETCH_SELECT_HALO,
-};
-
-export type SketchPointProps = {
+export type SketchLineProps = {
   endpointA: XY;
   endpointB: XY;
   lineStyle: LineStyle;
@@ -31,7 +21,7 @@ export const SketchLine = memo(
     lineStyle,
     selected,
     isFullyConstrained = false,
-  }: SketchPointProps) => {
+  }: SketchLineProps) => {
     return (
       <line
         vectorEffect="non-scaling-stroke"

@@ -21,6 +21,7 @@ import {
 } from "../geometry/vector";
 import { SketchLinearDimension } from "./SketchLinearDimension";
 import { displayDistance } from "./displayDistance";
+import { SketchArc } from "./SketchArc";
 
 export function SketchView({
   appState,
@@ -78,6 +79,21 @@ export function SketchView({
               />
             );
           }
+          if (element.sketchElement === "SketchElementArc") {
+            const endpointA = getPointPosition(appState, element.endpointA);
+            const endpointB = getPointPosition(appState, element.endpointB);
+            const center = getPointPosition(appState, element.center);
+
+            return (
+              <SketchArc
+                key={element.id.toString()}
+                endpointA={endpointA}
+                endpointB={endpointB}
+                center={center}
+                lineStyle="selection-halo"
+              />
+            );
+          }
           if (element.sketchElement === "SketchElementPoint") {
             return (
               <SketchPoint
@@ -113,6 +129,26 @@ export function SketchView({
               key={element.id.toString()}
               endpointA={endpointA}
               endpointB={endpointB}
+              lineStyle="sketch"
+              selected={visuallySelectedSet.has(element.id)}
+              isFullyConstrained={
+                isConstrained(element.endpointA) &&
+                isConstrained(element.endpointB)
+              }
+            />
+          );
+        }
+        if (element.sketchElement === "SketchElementArc") {
+          const endpointA = getPointPosition(appState, element.endpointA);
+          const endpointB = getPointPosition(appState, element.endpointB);
+          const center = getPointPosition(appState, element.center);
+
+          return (
+            <SketchArc
+              key={element.id.toString()}
+              endpointA={endpointA}
+              endpointB={endpointB}
+              center={center}
               lineStyle="sketch"
               selected={visuallySelectedSet.has(element.id)}
               isFullyConstrained={
@@ -199,19 +235,17 @@ export function SketchView({
 
       {/* TOOLS AND PREVIEWS */}
 
-      {appState.sketch.sketchElements.map((element) => {
+      {(() => {
         const previewElements: JSX.Element[] = [];
 
         const sketchTool = appState.controls.activeSketchTool;
 
-        if (
-          element.sketchElement === "SketchElementPoint" &&
-          sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT" &&
-          element.id === sketchTool.fromPoint
-        ) {
+        if (sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT") {
+          const fromXY = getPointPosition(appState, sketchTool.fromPoint);
           previewElements.push(
-            <SketchMarker key="from-marker" position={element.position} />,
+            <SketchMarker key="from-marker" position={fromXY} />,
           );
+
           const destination = findOrCreatePointNear(
             appState,
             cursorAt,
@@ -219,8 +253,53 @@ export function SketchView({
           previewElements.push(
             <SketchLine
               key="line-preview"
-              endpointA={element.position}
+              endpointA={fromXY}
               endpointB={destination}
+              lineStyle="preview"
+            />,
+          );
+        }
+
+        if (sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_POINT") {
+          const fromXY = getPointPosition(appState, sketchTool.endpointA);
+          previewElements.push(
+            <SketchMarker key="from-marker" position={fromXY} />,
+          );
+
+          const destination = findOrCreatePointNear(
+            appState,
+            cursorAt,
+          ).position;
+          previewElements.push(
+            <SketchLine
+              key="line-preview"
+              endpointA={fromXY}
+              endpointB={destination}
+              lineStyle="preview"
+            />,
+          );
+        }
+
+        if (sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_TWO_POINTS") {
+          const fromXY = getPointPosition(appState, sketchTool.endpointA);
+          const toXY = getPointPosition(appState, sketchTool.endpointB);
+          previewElements.push(
+            <SketchMarker key="from-marker" position={fromXY} />,
+          );
+          previewElements.push(
+            <SketchMarker key="to-marker" position={toXY} />,
+          );
+
+          const destination = findOrCreatePointNear(
+            appState,
+            cursorAt,
+          ).position;
+          previewElements.push(
+            <SketchArc
+              key="line-preview"
+              endpointA={fromXY}
+              endpointB={toXY}
+              center={destination}
               lineStyle="preview"
             />,
           );
@@ -228,18 +307,21 @@ export function SketchView({
 
         if (previewElements.length > 0) {
           return (
-            <Fragment key={`preview-${element.id}`}>{previewElements}</Fragment>
+            <Fragment key={`preview-elements`}>{previewElements}</Fragment>
           );
         }
         return null;
-      })}
+      })()}
 
       {(() => {
         const sketchTool = appState.controls.activeSketchTool;
         if (
           sketchTool.sketchTool === "TOOL_CREATE_POINT" ||
           sketchTool.sketchTool === "TOOL_CREATE_LINE" ||
-          sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT"
+          sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT" ||
+          sketchTool.sketchTool === "TOOL_CREATE_ARC" ||
+          sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_POINT" ||
+          sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_TWO_POINTS"
         ) {
           return <SketchMarker position={hoveringPoint.position} />;
         }
