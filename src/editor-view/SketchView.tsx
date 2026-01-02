@@ -9,7 +9,8 @@ import {
   getElement,
   getPointPosition,
 } from "../state/AppState";
-import { findOrCreatePointNear, findPointNear } from "../state/AppAction";
+import { findOrCreatePointNear } from "../state/findOrCreatePointNear";
+import { findPointNear } from "../state/findPointNear";
 import { SketchPoint } from "../editor-view/SketchPoint";
 import { SketchLine } from "../editor-view/SketchLine";
 import { SketchMarker } from "../editor-view/SketchMarker";

@@ -27,12 +27,8 @@ import {
   ConstraintPointLineDistanceID,
 } from "./AppState";
 import {
-  EPS,
   distanceBetweenPoints,
-  distancePointToArc,
-  distancePointToLineSegment,
   dotProduct,
-  intersectionBetweenTwoLines,
   pointAdd,
   pointNormalize,
   pointProjectOntoLine,
@@ -41,6 +37,82 @@ import {
 import { ID } from "../id";
 import { SketchToolState } from "./ToolState";
 import { applyConstraint } from "../solver/constrain";
+import { findClosestGeometryNear } from "./findClosestGeometryNear";
+import { findAllGeometryFullyWithinBox } from "./findAllGeometryFullyWithinBox";
+import { findAllGeometryPartiallyWithinBox } from "./findAllGeometryPartiallyWithinBox";
+import { findOrCreatePointNear } from "./findOrCreatePointNear";
+
+/**
+ * A type-erased action definition.
+ */
+export interface AppActionErased {
+  action: "erased";
+  registeredActionName: string;
+  actionProps: unknown;
+}
+
+const globalActionDefinitions: Map<
+  string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  AppActionDefinition<any>
+> = new Map();
+
+export type AppActionDefinition<Props> = {
+  /**
+   * If `true` (or unset), this action will automatically be added to the undo stack.
+   *
+   * default: `true`
+   */
+  addToUndoStack?: boolean;
+  run: (app: AppState, props: Props) => AppState;
+};
+
+function normalizeDefinition<Props>(
+  actionName: string,
+  def: AppActionDefinition<Props>,
+): AppActionDefinition<Props> {
+  const addToUndoStack = def.addToUndoStack ?? true;
+  const run = (app: AppState, props: Props): AppState => {
+    if (addToUndoStack) {
+      app = applyAppAction(app, {
+        action: "PUSH_TO_UNDO_STACK",
+        key: null,
+        debugName: actionName,
+      });
+    }
+    return def.run(app, props);
+  };
+  return {
+    addToUndoStack,
+    run,
+  };
+}
+
+/**
+ * A function that creates an action object.
+ */
+export type AppActionConstructor<Props> = (props: Props) => AppAction;
+
+export function registerAppAction<Props>(
+  actionName: string,
+  definition: AppActionDefinition<Props>,
+): AppActionConstructor<Props> {
+  if (globalActionDefinitions.has(actionName)) {
+    throw new Error(`cannot register the action '${actionName}' twice`);
+  }
+  globalActionDefinitions.set(
+    actionName,
+    normalizeDefinition(actionName, definition),
+  );
+
+  return (actionProps: Props): AppAction => {
+    return {
+      action: "erased",
+      registeredActionName: actionName,
+      actionProps,
+    };
+  };
+}
 
 export type AppAction =
   | AppActionUndo
@@ -54,7 +126,6 @@ export type AppAction =
   | AppActionInterfaceMouseMove
   | AppActionInterfaceKeyDown
   | AppActionSketchCreatePoint
-  | AppActionSketchCreateLine
   | AppActionSketchCreateArc
   | AppActionSketchCreateFixedConstraint
   | AppActionSketchCreateConstraintAxisAligned
@@ -65,7 +136,8 @@ export type AppAction =
   | AppActionSketchMovePoint
   | AppActionSketchDelete
   | AppActionSketchUpdateConstraint
-  | AppActionSketchMergePoints;
+  | AppActionSketchMergePoints
+  | AppActionErased;
 
 export type AppActionUndo = {
   action: "UNDO";
@@ -122,13 +194,6 @@ export type AppActionSketchCreatePoint = {
   action: "SKETCH_CREATE_POINT";
   id: PointID;
   at: XY;
-};
-
-export type AppActionSketchCreateLine = {
-  action: "SKETCH_CREATE_LINE";
-  id: LineID;
-  endpointA: PointID;
-  endpointB: PointID;
 };
 
 export type AppActionSketchCreateArc = {
@@ -213,139 +278,9 @@ export type AppActionSketchMergePoints = {
   points: readonly PointID[];
 };
 
-const SELECT_NEAR_THRESHOLD = 0.015;
+export const SELECT_NEAR_THRESHOLD = 0.015;
 
-export function findClosestGeometryNear(
-  app: AppState,
-  near: XY,
-): { id: SketchElementID } | null {
-  // TODO: This should be interactive, so that the user can select an alternative point if they want to.
-  const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
-
-  // (1/3) First the closest dimension, if any.
-  let closestDimension: {
-    id: ConstraintPointPointDistanceID | ConstraintPointLineDistanceID;
-    distance: number;
-  } | null = null;
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementConstraintPointPointDistance") {
-      const elementHandlePosition = computeConstraintDistanceHandlePosition({
-        a: getPointPosition(app, element.pointA),
-        b: getPointPosition(app, element.pointB),
-        t: element.cosmetic.t,
-        offset: element.cosmetic.offset,
-      });
-      const distanceToHandle = distanceBetweenPoints(
-        near,
-        elementHandlePosition,
-      );
-      if (distanceToHandle > MAX_NEAR_DISTANCE) {
-        continue;
-      }
-      if (
-        closestDimension === null ||
-        closestDimension.distance > distanceToHandle
-      ) {
-        closestDimension = { id: element.id, distance: distanceToHandle };
-      }
-    }
-
-    if (element.sketchElement === "SketchElementConstraintPointLineDistance") {
-      const point = getPointPosition(app, element.point);
-      const lineA = getPointPosition(
-        app,
-        getElement(app, element.line).endpointA,
-      );
-      const lineB = getPointPosition(
-        app,
-        getElement(app, element.line).endpointB,
-      );
-
-      const projected = pointProjectOntoLine(point, {
-        a: lineA,
-        b: lineB,
-      }).point;
-
-      const elementHandlePosition = computeConstraintDistanceHandlePosition({
-        a: point,
-        b: projected,
-        t: element.cosmetic.t,
-        offset: element.cosmetic.offset,
-      });
-      const distanceToHandle = distanceBetweenPoints(
-        near,
-        elementHandlePosition,
-      );
-      if (distanceToHandle > MAX_NEAR_DISTANCE) {
-        continue;
-      }
-      if (
-        closestDimension === null ||
-        closestDimension.distance > distanceToHandle
-      ) {
-        closestDimension = { id: element.id, distance: distanceToHandle };
-      }
-    }
-  }
-  if (closestDimension !== null) {
-    return { id: closestDimension.id };
-  }
-
-  // (2/3) Find the closest point, if any.
-
-  let closestPoint: { id: PointID; distance: number } | null = null;
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementPoint") {
-      const distanceToPoint = distanceBetweenPoints(near, element.position);
-      if (distanceToPoint > MAX_NEAR_DISTANCE) {
-        continue;
-      }
-      if (closestPoint === null || closestPoint.distance > distanceToPoint) {
-        closestPoint = { id: element.id, distance: distanceToPoint };
-      }
-    }
-  }
-  if (closestPoint !== null) {
-    return { id: closestPoint.id };
-  }
-
-  // (3/3) Find the closest line segment.
-  let closestLine: { id: LineID | ArcID; distance: number } | null = null;
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementLine") {
-      const distanceToLine = distancePointToLineSegment(near, {
-        a: getPointPosition(app, element.endpointA),
-        b: getPointPosition(app, element.endpointB),
-      });
-      if (distanceToLine > MAX_NEAR_DISTANCE) {
-        continue;
-      }
-      if (closestLine === null || closestLine.distance > distanceToLine) {
-        closestLine = { id: element.id, distance: distanceToLine };
-      }
-    }
-    if (element.sketchElement === "SketchElementArc") {
-      const distanceToArc = distancePointToArc(near, {
-        a: getPointPosition(app, element.endpointA),
-        b: getPointPosition(app, element.endpointB),
-        center: getPointPosition(app, element.center),
-      });
-      if (distanceToArc > MAX_NEAR_DISTANCE) {
-        continue;
-      }
-      if (closestLine === null || closestLine.distance > distanceToArc) {
-        closestLine = { id: element.id, distance: distanceToArc };
-      }
-    }
-  }
-  if (closestLine !== null) {
-    return { id: closestLine.id };
-  }
-
-  return null;
-}
-
-function isPointInAABB({
+export function isPointInAABB({
   point,
   min,
   max,
@@ -364,201 +299,6 @@ function isPointInAABB({
   );
 }
 
-/**
- * Returns all geometry which is fully contained within the provided box.
- */
-export function findAllGeometryFullyWithinBox(
-  app: AppState,
-  cornerA: XY,
-  cornerB: XY,
-): SketchElementID[] {
-  const min = {
-    x: Math.min(cornerA.x, cornerB.x),
-    y: Math.min(cornerA.y, cornerB.y),
-  };
-  const max = {
-    x: Math.max(cornerA.x, cornerB.x),
-    y: Math.max(cornerA.y, cornerB.y),
-  };
-  const inside: SketchElementID[] = [];
-  const pointPositions = new Map<PointID, XY>();
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementPoint") {
-      pointPositions.set(element.id, element.position);
-      if (isPointInAABB({ point: element.position, min, max })) {
-        inside.push(element.id);
-      }
-    }
-  }
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementLine") {
-      const positionA = pointPositions.get(element.endpointA);
-      const positionB = pointPositions.get(element.endpointB);
-      if (
-        positionA !== undefined &&
-        positionB !== undefined &&
-        isPointInAABB({ point: positionA, min, max }) &&
-        isPointInAABB({ point: positionB, min, max })
-      ) {
-        inside.push(element.id);
-      }
-    }
-  }
-
-  return inside;
-}
-
-/**
- * Returns all geometry which is partially contained within the provided box.
- */
-export function findAllGeometryPartiallyWithinBox(
-  app: AppState,
-  cornerA: XY,
-  cornerB: XY,
-): SketchElementID[] {
-  const min = {
-    x: Math.min(cornerA.x, cornerB.x),
-    y: Math.min(cornerA.y, cornerB.y),
-  };
-  const max = {
-    x: Math.max(cornerA.x, cornerB.x),
-    y: Math.max(cornerA.y, cornerB.y),
-  };
-  const inside: SketchElementID[] = [];
-  const pointPositions = new Map<PointID, XY>();
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementPoint") {
-      pointPositions.set(element.id, element.position);
-      if (isPointInAABB({ point: element.position, min, max })) {
-        inside.push(element.id);
-      }
-    }
-  }
-  elementLoop: for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementLine") {
-      const positionA = pointPositions.get(element.endpointA);
-      const positionB = pointPositions.get(element.endpointB);
-      if (positionA === undefined || positionB === undefined) {
-        continue;
-      }
-      if (
-        isPointInAABB({ point: positionA, min, max }) ||
-        isPointInAABB({ point: positionB, min, max })
-      ) {
-        inside.push(element.id);
-        continue;
-      }
-
-      const corners = [
-        min,
-        { x: min.x, y: max.y },
-        max,
-        { x: max.x, y: min.y },
-      ];
-      for (let i = 0; i < 4; i++) {
-        const a = corners[i];
-        const b = corners[(i + 1) % 4];
-        const intersection = intersectionBetweenTwoLines(
-          { a: positionA, b: positionB },
-          { a, b },
-        );
-        if (intersection === null) {
-          // The intersection does not exist.
-          continue;
-        }
-        if (
-          distancePointToLineSegment(intersection, {
-            a: positionA,
-            b: positionB,
-          }) > EPS
-        ) {
-          // The intersection is outside of the segment.
-          continue;
-        }
-        if (isPointInAABB({ point: intersection, min, max, slack: EPS })) {
-          inside.push(element.id);
-          continue elementLoop;
-        }
-      }
-    }
-  }
-  return inside;
-}
-
-export function findPointNear(
-  app: AppState,
-  near: XY,
-): { id: PointID | null; position: XY; created: boolean } {
-  const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
-
-  // TODO: This should be interactive, so that the user can select an alternative point if they want to.
-  let closest: { id: PointID; distance: number; position: XY } | null = null;
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementPoint") {
-      const distanceToPoint = distanceBetweenPoints(near, element.position);
-      if (distanceToPoint > MAX_NEAR_DISTANCE) {
-        continue;
-      }
-      if (closest === null || distanceToPoint < closest.distance) {
-        closest = {
-          id: element.id,
-          distance: distanceToPoint,
-          position: element.position,
-        };
-      }
-    }
-  }
-  if (closest) {
-    return { id: closest.id, position: closest.position, created: false };
-  }
-
-  return {
-    id: null,
-    position: near,
-    created: true,
-  };
-}
-
-export function findOrCreatePointNear(
-  app: AppState,
-  near: XY,
-): { app: AppState; id: PointID; position: XY; created: boolean } {
-  const MAX_NEAR_DISTANCE = app.view.size * SELECT_NEAR_THRESHOLD;
-
-  // TODO: This should be interactive, so that the user can select an alternative point if they want to.
-  let closest: { id: PointID; distance: number; position: XY } | null = null;
-  for (const element of app.sketch.sketchElements) {
-    if (element.sketchElement === "SketchElementPoint") {
-      const distanceToPoint = distanceBetweenPoints(near, element.position);
-      if (distanceToPoint > MAX_NEAR_DISTANCE) {
-        continue;
-      }
-      if (closest === null || distanceToPoint < closest.distance) {
-        closest = {
-          id: element.id,
-          distance: distanceToPoint,
-          position: element.position,
-        };
-      }
-    }
-  }
-  if (closest) {
-    return { app, id: closest.id, position: closest.position, created: false };
-  }
-
-  const id = new PointID(ID.uniqueID());
-  return {
-    app: applyAppAction(app, {
-      action: "SKETCH_CREATE_POINT",
-      at: near,
-      id,
-    }),
-    id,
-    position: near,
-    created: true,
-  };
-}
-
 export function applyAppAction(
   app: AppState,
   ...actions: AppAction[]
@@ -574,6 +314,17 @@ export function applyAppActionImplementation(
   action: AppAction,
 ): AppState {
   switch (action.action) {
+    case "erased": {
+      const registeredAction = globalActionDefinitions.get(
+        action.registeredActionName,
+      );
+      if (!registeredAction) {
+        throw new Error(
+          `no action registered for name '${action.registeredActionName}`,
+        );
+      }
+      return registeredAction.run(app, action.actionProps);
+    }
     case "UNDO": {
       if (app.undoState.undoStack.length > 0) {
         const lastEntry =
@@ -683,12 +434,11 @@ export function applyAppActionImplementation(
         app = newApp;
         return applyAppAction(
           app,
-          {
-            action: "SKETCH_CREATE_LINE",
+          actionCreateLine({
             id: new LineID(ID.uniqueID()),
             endpointA: fromPoint,
             endpointB: toPoint,
-          },
+          }),
           {
             action: "STATE_CHANGE_TOOL",
             newTool: { sketchTool: "TOOL_NONE" },
@@ -1260,30 +1010,6 @@ export function applyAppActionImplementation(
         },
       };
     }
-    case "SKETCH_CREATE_LINE": {
-      // TODO: Verify that `endpointA` and `endpointB` already exist, and that `id` does not.
-      app = applyAppAction(app, {
-        action: "PUSH_TO_UNDO_STACK",
-        key: null,
-        debugName: "create line",
-      });
-      return {
-        ...app,
-        sketch: {
-          ...app.sketch,
-          sketchElements: [
-            ...app.sketch.sketchElements,
-            {
-              sketchElement: "SketchElementLine",
-              id: action.id,
-              endpointA: action.endpointA,
-              endpointB: action.endpointB,
-              sketchStyle: app.controls.currentSketchStyle,
-            },
-          ],
-        },
-      };
-    }
     case "SKETCH_CREATE_ARC": {
       // TODO: Verify that `endpointA` and `endpointB` already exist, and that `id` does not.
       app = applyAppAction(app, {
@@ -1819,6 +1545,35 @@ export function applyAppActionImplementation(
   }
   assertUnreachable(action, "unhandled action " + JSON.stringify(action));
 }
+
+export const actionCreateLine = registerAppAction("sketch-create-line", {
+  run: (
+    app: AppState,
+    action: {
+      id: LineID;
+      endpointA: PointID;
+      endpointB: PointID;
+    },
+  ): AppState => {
+    // TODO: Verify that `endpointA` and `endpointB` already exist, and that `id` does not.
+    return {
+      ...app,
+      sketch: {
+        ...app.sketch,
+        sketchElements: [
+          ...app.sketch.sketchElements,
+          {
+            sketchElement: "SketchElementLine",
+            id: action.id,
+            endpointA: action.endpointA,
+            endpointB: action.endpointB,
+            sketchStyle: app.controls.currentSketchStyle,
+          },
+        ],
+      },
+    };
+  },
+});
 
 /**
  * This
