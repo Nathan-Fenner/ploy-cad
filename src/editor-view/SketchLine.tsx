@@ -32,7 +32,13 @@ export const SketchLine = memo(
             ? COLOR_SKETCH_FULLY_CONSTRAINED
             : COLOR_FROM_LINE_STYLE[lineStyle]
         }
-        strokeDasharray={lineStyle === "preview" ? "3 2" : undefined}
+        strokeDasharray={
+          lineStyle === "sketch-construction"
+            ? "5 5"
+            : lineStyle === "preview"
+            ? "3 2"
+            : undefined
+        }
         x1={endpointA.x}
         y1={endpointA.y}
         x2={endpointB.x}

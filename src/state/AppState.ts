@@ -53,6 +53,7 @@ export type SketchState = {
 export type AppControls = {
   panning: boolean;
   activeSketchTool: SketchToolState;
+  currentSketchStyle: "sketch" | "sketch-construction";
 };
 
 export type XY = { readonly x: number; readonly y: number };
@@ -195,6 +196,7 @@ export type SketchElementLine<Tag = unknown> = {
   id: LineID;
   endpointA: PointID<Tag>;
   endpointB: PointID<Tag>;
+  sketchStyle: "sketch" | "sketch-construction";
 };
 
 /**
@@ -208,6 +210,7 @@ export type SketchElementArc<Tag = unknown> = {
   endpointA: PointID<Tag>;
   endpointB: PointID<Tag>;
   center: PointID<Tag>;
+  sketchStyle: "sketch" | "sketch-construction";
 };
 
 const getElementCacheMap = new WeakMap<
@@ -363,7 +366,11 @@ export type SketchElementConstraintPointLineDistance<Tag = unknown> = {
 
 export const APP_STATE_INITIAL: AppState = {
   view: { center: { x: 0, y: 0 }, size: 200 },
-  controls: { panning: false, activeSketchTool: { sketchTool: "TOOL_NONE" } },
+  controls: {
+    panning: false,
+    activeSketchTool: { sketchTool: "TOOL_NONE" },
+    currentSketchStyle: "sketch",
+  },
   sketch: {
     sketchElements: [
       {

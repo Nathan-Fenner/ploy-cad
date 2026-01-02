@@ -13,6 +13,8 @@ export const COLOR_SKETCH_SELECT_HALO = "var(--sketch-select-halo)";
 export const COLOR_SKETCH_POINT_STROKE = "var(--sketch-point-stroke)";
 export const COLOR_SKETCH_POINT_FILL = "var(--sketch-point-fill)";
 export const COLOR_SKETCH_LINE_STROKE = "var(--sketch-line-stroke)";
+export const COLOR_SKETCH_CONSTRUCTION_LINE_STROKE =
+  "var(--sketch-line-construction-stroke)";
 
 export const COLOR_SKETCH_MARKER_STROKE = "var(--sketch-marker-stroke)";
 

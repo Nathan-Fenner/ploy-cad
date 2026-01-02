@@ -63,7 +63,7 @@ export const SketchArc = memo(
         <line
           vectorEffect="non-scaling-stroke"
           stroke={"#0ff"}
-          strokeDasharray="2 2"
+          strokeDasharray="1 5 6 5"
           x1={endpointA.x}
           y1={endpointA.y}
           x2={center.x}
@@ -73,7 +73,7 @@ export const SketchArc = memo(
         <line
           vectorEffect="non-scaling-stroke"
           stroke={"#0ff"}
-          strokeDasharray="2 2"
+          strokeDasharray="1 5 6 5"
           x1={endpointB.x}
           y1={endpointB.y}
           x2={center.x}

@@ -25,7 +25,7 @@ export type SketchPointProps = {
   dimensionStyle?: "normal" | "selection-halo";
 };
 
-const EXTENSION_LINE_GAP = { world: 5 };
+const EXTENSION_LINE_GAP = { world: 0.85 };
 const EXTENSION_LINE_EXTRA = { world: 10 };
 
 export const SketchLinearDimension = memo(

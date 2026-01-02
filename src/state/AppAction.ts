@@ -581,6 +581,7 @@ export function applyAppActionImplementation(
         return {
           controls: {
             panning: app.controls.panning,
+            currentSketchStyle: app.controls.currentSketchStyle,
             activeSketchTool: { sketchTool: "TOOL_NONE" },
           },
           view: lastEntry.state.view,
@@ -1277,6 +1278,7 @@ export function applyAppActionImplementation(
               id: action.id,
               endpointA: action.endpointA,
               endpointB: action.endpointB,
+              sketchStyle: app.controls.currentSketchStyle,
             },
           ],
         },
@@ -1301,6 +1303,7 @@ export function applyAppActionImplementation(
               endpointA: action.endpointA,
               endpointB: action.endpointB,
               center: action.center,
+              sketchStyle: app.controls.currentSketchStyle,
             },
           ],
         },
