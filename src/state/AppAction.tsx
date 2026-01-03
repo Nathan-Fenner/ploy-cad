@@ -39,18 +39,15 @@ import {
   handleToolEffect,
   INITIAL_TOOL_STATE,
   runTool,
-  ToolFlowSend,
+  type ToolFlowSend,
   type SketchToolState,
   type ToolFunction,
-  type ToolInterface,
 } from "./ToolState";
 import { applyConstraint } from "../solver/constrain";
 import { findClosestGeometryNear } from "./findClosestGeometryNear";
 import { findAllGeometryFullyWithinBox } from "./findAllGeometryFullyWithinBox";
 import { findAllGeometryPartiallyWithinBox } from "./findAllGeometryPartiallyWithinBox";
 import { findOrCreatePointNear } from "./findOrCreatePointNear";
-import { SketchMarker } from "../editor-view/SketchMarker";
-import { SketchLine } from "../editor-view/SketchLine";
 
 /**
  * A type-erased action definition.
@@ -1696,46 +1693,6 @@ export const actionCreateLine = registerAppAction("sketch-create-line", {
     };
   },
 });
-
-function toolCreateLine(tool: ToolInterface) {
-  tool.trigger({ key: "l" });
-
-  const endpointA = tool.pickOrCreatePoint("endpoint-1");
-  const endpointB = tool.pickOrCreatePoint("endpoint-2", {
-    preview: (appState, view) => {
-      const fromXY = getPointPosition(appState, endpointA);
-      const destination = findOrCreatePointNear(
-        appState,
-        view.cursorAt,
-      ).position;
-      return (
-        <>
-          <SketchMarker key="from-marker" position={fromXY} />
-          <SketchLine
-            key="line-preview"
-            endpointA={fromXY}
-            endpointB={destination}
-            lineStyle="preview"
-          />
-        </>
-      );
-    },
-  });
-
-  if (endpointA === endpointB) {
-    tool.abort();
-  }
-
-  tool.apply(
-    actionCreateLine({
-      id: tool.generateID(LineID),
-      endpointA,
-      endpointB,
-    }),
-  );
-}
-
-registerTool("line", toolCreateLine);
 
 function assertUnreachable(
   _x: never,

@@ -10,6 +10,10 @@ import {
 import "./App.css";
 import { Canvas } from "./canvas/Canvas";
 
+import * as _registerAllTools from "./state/tools/registerAll";
+
+_registerAllTools.registerTools();
+
 import {
   APP_STATE_INITIAL,
   AppState,
