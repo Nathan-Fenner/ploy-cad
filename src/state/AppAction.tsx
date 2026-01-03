@@ -1335,65 +1335,79 @@ export function applyAppActionImplementation(
         | PointID
         | ConstraintPointPointDistanceID
         | ConstraintPointLineDistanceID = action.point;
+
+      const movedSketch = {
+        ...app.sketch,
+        sketchElements: app.sketch.sketchElements.map((sketchElement) => {
+          if (
+            sketchElement.sketchElement === "SketchElementPoint" &&
+            sketchElement.id === moveGeometry
+          ) {
+            return {
+              ...sketchElement,
+              position: action.toPosition,
+            };
+          } else if (
+            sketchElement.sketchElement ===
+              "SketchElementConstraintPointPointDistance" &&
+            sketchElement.id === moveGeometry
+          ) {
+            const parameters = computeConstraintDistanceParameters({
+              a: getPointPosition(app, sketchElement.pointA),
+              b: getPointPosition(app, sketchElement.pointB),
+              labelPosition: action.toPosition,
+            });
+            return {
+              ...sketchElement,
+              cosmetic: parameters,
+            };
+          } else if (
+            sketchElement.sketchElement ===
+              "SketchElementConstraintPointLineDistance" &&
+            sketchElement.id === moveGeometry
+          ) {
+            const point = getPointPosition(app, sketchElement.point);
+            const lineA = getPointPosition(
+              app,
+              getElement(app, sketchElement.line).endpointA,
+            );
+            const lineB = getPointPosition(
+              app,
+              getElement(app, sketchElement.line).endpointB,
+            );
+            const projected = pointProjectOntoLine(point, {
+              a: lineA,
+              b: lineB,
+            }).point;
+            const parameters = computeConstraintDistanceParameters({
+              a: point,
+              b: projected,
+              labelPosition: action.toPosition,
+            });
+            return {
+              ...sketchElement,
+              cosmetic: parameters,
+            };
+          } else {
+            return sketchElement;
+          }
+        }),
+      };
+
+      if (
+        moveGeometry instanceof ConstraintPointPointDistanceID ||
+        moveGeometry instanceof ConstraintPointLineDistanceID
+      ) {
+        return {
+          ...app,
+          sketch: movedSketch,
+        };
+      }
+
+      // Re-solve constraints based on the moved geometry.
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: app.sketch.sketchElements.map((sketchElement) => {
-            if (
-              sketchElement.sketchElement === "SketchElementPoint" &&
-              sketchElement.id === moveGeometry
-            ) {
-              return {
-                ...sketchElement,
-                position: action.toPosition,
-              };
-            } else if (
-              sketchElement.sketchElement ===
-                "SketchElementConstraintPointPointDistance" &&
-              sketchElement.id === moveGeometry
-            ) {
-              const parameters = computeConstraintDistanceParameters({
-                a: getPointPosition(app, sketchElement.pointA),
-                b: getPointPosition(app, sketchElement.pointB),
-                labelPosition: action.toPosition,
-              });
-              return {
-                ...sketchElement,
-                cosmetic: parameters,
-              };
-            } else if (
-              sketchElement.sketchElement ===
-                "SketchElementConstraintPointLineDistance" &&
-              sketchElement.id === moveGeometry
-            ) {
-              const point = getPointPosition(app, sketchElement.point);
-              const lineA = getPointPosition(
-                app,
-                getElement(app, sketchElement.line).endpointA,
-              );
-              const lineB = getPointPosition(
-                app,
-                getElement(app, sketchElement.line).endpointB,
-              );
-              const projected = pointProjectOntoLine(point, {
-                a: lineA,
-                b: lineB,
-              }).point;
-              const parameters = computeConstraintDistanceParameters({
-                a: point,
-                b: projected,
-                labelPosition: action.toPosition,
-              });
-              return {
-                ...sketchElement,
-                cosmetic: parameters,
-              };
-            } else {
-              return sketchElement;
-            }
-          }),
-        }).updated,
+        sketch: applyConstraint(movedSketch).updated,
       };
     }
     case "SKETCH_DELETE": {

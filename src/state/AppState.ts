@@ -8,6 +8,7 @@ import {
   pointSubtract,
 } from "../geometry/vector";
 import { ID } from "../id";
+import { registerConstructor } from "../save/saveToJson";
 import { SketchToolState } from "./ToolState";
 
 /**
@@ -92,6 +93,11 @@ export class PointID<Tag = unknown> extends ID {
   }
 }
 
+registerConstructor(PointID<any>, {
+  serialize: (p: PointID<any>) => p.id,
+  deserialize: (p: any): PointID<any> => new PointID<any>(p),
+});
+
 /**
  * The ID of a line.
  */
@@ -99,11 +105,21 @@ export class LineID extends ID {
   __line: void = undefined;
 }
 
+registerConstructor(LineID, {
+  serialize: (p: LineID) => p.id,
+  deserialize: (p: any): LineID => new LineID(p),
+});
+
 export class ArcID extends ID {
   __arc: void = undefined;
 }
 
-export class ConstraintID extends ID {
+registerConstructor(ArcID, {
+  serialize: (p: ArcID) => p.id,
+  deserialize: (p: any): ArcID => new ArcID(p),
+});
+
+export abstract class ConstraintID extends ID {
   __constraint: void = undefined;
 }
 
@@ -159,25 +175,60 @@ export class ConstraintFixedID extends ID {
   __constraintFixed: void = undefined;
 }
 
+registerConstructor(ConstraintFixedID, {
+  serialize: (p: ConstraintFixedID) => p.id,
+  deserialize: (p: any): ConstraintFixedID => new ConstraintFixedID(p),
+});
+
 export class ConstraintAxisAlignedID extends ID {
   __constraintAxisAligned: void = undefined;
 }
+
+registerConstructor(ConstraintAxisAlignedID, {
+  serialize: (p: ConstraintAxisAlignedID) => p.id,
+  deserialize: (p: any): ConstraintAxisAlignedID =>
+    new ConstraintAxisAlignedID(p),
+});
 
 export class ConstraintPointPointDistanceID extends ID {
   __constraintPointPointDistance: void = undefined;
 }
 
+registerConstructor(ConstraintPointPointDistanceID, {
+  serialize: (p: ConstraintPointPointDistanceID) => p.id,
+  deserialize: (p: any): ConstraintPointPointDistanceID =>
+    new ConstraintPointPointDistanceID(p),
+});
+
 export class ConstraintPointLineDistanceID extends ID {
   __constraintPointLineDistance: void = undefined;
 }
+
+registerConstructor(ConstraintPointLineDistanceID, {
+  serialize: (p: ConstraintPointLineDistanceID) => p.id,
+  deserialize: (p: any): ConstraintPointLineDistanceID =>
+    new ConstraintPointLineDistanceID(p),
+});
 
 export class ConstraintPointOnLineID extends ID {
   __constraintPointOnLine: void = undefined;
 }
 
+registerConstructor(ConstraintPointOnLineID, {
+  serialize: (p: ConstraintPointOnLineID) => p.id,
+  deserialize: (p: any): ConstraintPointOnLineID =>
+    new ConstraintPointOnLineID(p),
+});
+
 export class ConstraintPointOnArcID extends ID {
   __constraintPointOnArc: void = undefined;
 }
+
+registerConstructor(ConstraintPointOnLineID, {
+  serialize: (p: ConstraintPointOnLineID) => p.id,
+  deserialize: (p: any): ConstraintPointOnLineID =>
+    new ConstraintPointOnLineID(p),
+});
 
 /**
  * A movable point in the sketch.

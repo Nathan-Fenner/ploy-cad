@@ -38,10 +38,10 @@ export function areFactsEqual(fact1: object, fact2: object): boolean {
     );
   }
 
-  if (
-    Object.keys(fact1).sort().join(";") === "x;y" &&
-    Object.keys(fact2).sort().join(";") === "x;y"
-  ) {
+  const keys1 = Object.keys(fact1).sort().join(";");
+  const keys2 = Object.keys(fact1).sort().join(";");
+
+  if (keys1 === "x;y" && keys2 === "x;y") {
     // Both are points, so compare them by distance.
     return distanceBetweenPoints(fact1 as XY, fact2 as XY) < EPSILON;
   }
@@ -52,10 +52,7 @@ export function areFactsEqual(fact1: object, fact2: object): boolean {
     );
   }
 
-  if (
-    JSON.stringify(Object.keys(fact1).sort()) !==
-    JSON.stringify(Object.keys(fact2).sort())
-  ) {
+  if (keys1 !== keys2) {
     return false;
   }
 

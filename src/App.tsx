@@ -18,6 +18,7 @@ import {
   APP_STATE_INITIAL,
   AppState,
   ConstraintPointPointDistanceID,
+  SketchState,
   View,
   XY,
   getElement,
@@ -27,6 +28,7 @@ import { COLOR_EDITOR_BACKGROUND } from "./palette/colors";
 import { ZOOM_SPEED } from "./constants";
 import { SketchToolState } from "./state/ToolState";
 import { SketchView } from "./editor-view/SketchView";
+import { loadFromJson, saveToJson } from "./save/saveToJson";
 
 function zoomTo(view: View, zoomCenter: XY, steps: number): View {
   const newZoom = view.size * Math.pow(2, steps / 200);
@@ -70,11 +72,73 @@ function isToolModal(appState: AppState): boolean {
   );
 }
 
+const SAVED_SKETCH_LOCAL_STORAGE_KEY = "saved-sketch";
+
 function App() {
+  const [initialAppState] = useState(() => {
+    const savedSketchText = localStorage.getItem(
+      SAVED_SKETCH_LOCAL_STORAGE_KEY,
+    );
+    let savedSketchJSON: unknown = null;
+    if (savedSketchText !== null) {
+      try {
+        savedSketchJSON = JSON.parse(savedSketchText);
+      } catch (err) {
+        console.error("could not parse sketch from JSON!", err);
+      }
+    }
+
+    console.info({ savedSketchJSON });
+    let savedSketch: null | SketchState = null;
+    if (savedSketchJSON !== null) {
+      try {
+        savedSketch = loadFromJson(savedSketchJSON);
+      } catch (err) {
+        console.error(
+          "could not parse sketch from JSON!",
+          err,
+          savedSketchJSON,
+        );
+      }
+    }
+
+    if (savedSketch) {
+      console.info({ savedSketch });
+      return {
+        ...APP_STATE_INITIAL,
+        sketch: savedSketch,
+      };
+    }
+
+    return APP_STATE_INITIAL;
+  });
+
   const [appState, dispatchApp] = useReducer(
     applyAppActionImplementation,
-    APP_STATE_INITIAL,
+    initialAppState,
   );
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      try {
+        const serialized = saveToJson(appState.sketch);
+        localStorage.setItem(
+          SAVED_SKETCH_LOCAL_STORAGE_KEY,
+          JSON.stringify(serialized),
+        );
+      } catch (err) {
+        console.error(
+          "unable to save sketch state to json: ",
+          err,
+          appState.sketch,
+        );
+      }
+    }, 2000);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [appState.sketch]);
 
   const isInModalMode = useMemo(() => isToolModal(appState), [appState]);
 
