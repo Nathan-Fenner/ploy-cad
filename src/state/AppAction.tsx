@@ -1124,17 +1124,14 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: {
-          ...app.sketch,
-          sketchElements: [
-            ...app.sketch.sketchElements,
-            {
-              sketchElement: "SketchElementPoint",
-              id: action.id,
-              position: action.at,
-            },
-          ],
-        },
+        sketch: app.sketch.withSketchElements([
+          ...app.sketch.sketchElements,
+          {
+            sketchElement: "SketchElementPoint",
+            id: action.id,
+            position: action.at,
+          },
+        ]),
       };
     }
     case "SKETCH_CREATE_ARC": {
@@ -1146,20 +1143,17 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: {
-          ...app.sketch,
-          sketchElements: [
-            ...app.sketch.sketchElements,
-            {
-              sketchElement: "SketchElementArc",
-              id: action.id,
-              endpointA: action.endpointA,
-              endpointB: action.endpointB,
-              center: action.center,
-              sketchStyle: app.controls.currentSketchStyle,
-            },
-          ],
-        },
+        sketch: app.sketch.withSketchElements([
+          ...app.sketch.sketchElements,
+          {
+            sketchElement: "SketchElementArc",
+            id: action.id,
+            endpointA: action.endpointA,
+            endpointB: action.endpointB,
+            center: action.center,
+            sketchStyle: app.controls.currentSketchStyle,
+          },
+        ]),
       };
     }
     case "SKETCH_CREATE_FIXED_CONSTRAINT": {
@@ -1172,18 +1166,15 @@ export function applyAppActionImplementation(
 
       return {
         ...app,
-        sketch: {
-          ...app.sketch,
-          sketchElements: [
-            ...app.sketch.sketchElements,
-            {
-              sketchElement: "SketchElementConstraintFixed",
-              id: action.id,
-              point: action.point,
-              position: action.position,
-            },
-          ],
-        },
+        sketch: app.sketch.withSketchElements([
+          ...app.sketch.sketchElements,
+          {
+            sketchElement: "SketchElementConstraintFixed",
+            id: action.id,
+            point: action.point,
+            position: action.position,
+          },
+        ]),
       };
     }
     case "SKETCH_CREATE_CONSTRAINT_AXIS_ALIGNED": {
@@ -1196,9 +1187,8 @@ export function applyAppActionImplementation(
 
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: [
+        sketch: applyConstraint(
+          app.sketch.withSketchElements([
             ...app.sketch.sketchElements,
             {
               sketchElement: "SketchElementConstraintAxisAligned",
@@ -1207,8 +1197,8 @@ export function applyAppActionImplementation(
               pointA: action.pointA,
               pointB: action.pointB,
             },
-          ],
-        }).updated,
+          ]),
+        ).updated,
       };
     }
     case "SKETCH_CREATE_CONSTRAINT_DISTANCE": {
@@ -1220,9 +1210,8 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: [
+        sketch: applyConstraint(
+          app.sketch.withSketchElements([
             ...app.sketch.sketchElements,
             {
               sketchElement: "SketchElementConstraintPointPointDistance",
@@ -1235,8 +1224,8 @@ export function applyAppActionImplementation(
                 offset: action.offset,
               },
             },
-          ],
-        }).updated,
+          ]),
+        ).updated,
       };
     }
     case "AppActionSketchCreateConstraintPointLineDistance": {
@@ -1248,9 +1237,8 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: [
+        sketch: applyConstraint(
+          app.sketch.withSketchElements([
             ...app.sketch.sketchElements,
             {
               sketchElement: "SketchElementConstraintPointLineDistance",
@@ -1263,8 +1251,8 @@ export function applyAppActionImplementation(
                 offset: action.offset,
               },
             },
-          ],
-        }).updated,
+          ]),
+        ).updated,
       };
     }
     case "SKETCH_CREATE_CONSTRAINT_POINT_ON_LINE": {
@@ -1276,9 +1264,8 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: [
+        sketch: applyConstraint(
+          app.sketch.withSketchElements([
             ...app.sketch.sketchElements,
             {
               sketchElement: "SketchElementConstraintPointOnLine",
@@ -1286,8 +1273,8 @@ export function applyAppActionImplementation(
               point: action.point,
               line: action.line,
             },
-          ],
-        }).updated,
+          ]),
+        ).updated,
       };
     }
     case "SKETCH_CREATE_CONSTRAINT_POINT_ON_ARC": {
@@ -1299,9 +1286,8 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: [
+        sketch: applyConstraint(
+          app.sketch.withSketchElements([
             ...app.sketch.sketchElements,
             {
               sketchElement: "SketchElementConstraintPointOnArc",
@@ -1309,8 +1295,8 @@ export function applyAppActionImplementation(
               point: action.point,
               arc: action.arc,
             },
-          ],
-        }).updated,
+          ]),
+        ).updated,
       };
     }
     case "SKETCH_UPDATE_CONSTRAINT": {
@@ -1321,16 +1307,17 @@ export function applyAppActionImplementation(
       });
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: app.sketch.sketchElements.map((element) => {
-            if (element.id === action.dimensionID) {
-              return { ...element, distance: action.newDistance };
-            } else {
-              return element;
-            }
-          }),
-        }).updated,
+        sketch: applyConstraint(
+          app.sketch.withSketchElements(
+            app.sketch.sketchElements.map((element) => {
+              if (element.id === action.dimensionID) {
+                return { ...element, distance: action.newDistance };
+              } else {
+                return element;
+              }
+            }),
+          ),
+        ).updated,
       };
     }
     case "SKETCH_MOVE_POINT": {
@@ -1344,9 +1331,8 @@ export function applyAppActionImplementation(
         | ConstraintPointPointDistanceID
         | ConstraintPointLineDistanceID = action.point;
 
-      const movedSketch = {
-        ...app.sketch,
-        sketchElements: app.sketch.sketchElements.map((sketchElement) => {
+      const movedSketch = app.sketch.withSketchElements(
+        app.sketch.sketchElements.map((sketchElement) => {
           if (
             sketchElement.sketchElement === "SketchElementPoint" &&
             sketchElement.id === moveGeometry
@@ -1400,7 +1386,7 @@ export function applyAppActionImplementation(
             return sketchElement;
           }
         }),
-      };
+      );
 
       if (
         moveGeometry instanceof ConstraintPointPointDistanceID ||
@@ -1492,12 +1478,11 @@ export function applyAppActionImplementation(
 
       return {
         ...app,
-        sketch: {
-          ...app.sketch,
-          sketchElements: app.sketch.sketchElements.filter((sketchElement) => {
+        sketch: app.sketch.withSketchElements(
+          app.sketch.sketchElements.filter((sketchElement) => {
             return !isDeleted(sketchElement.id);
           }),
-        },
+        ),
       };
     }
     case "SKETCH_MERGE_POINTS": {
@@ -1522,165 +1507,170 @@ export function applyAppActionImplementation(
 
       return {
         ...app,
-        sketch: applyConstraint({
-          ...app.sketch,
-          sketchElements: app.sketch.sketchElements
-            .filter((sketchElement) => {
-              if (
-                sketchElement.sketchElement === "SketchElementPoint" &&
-                renamedPoints.has(sketchElement.id)
-              ) {
-                return false;
-              }
-              return true;
-            })
-            .flatMap((sketchElement): SketchElement<"renamed">[] => {
-              switch (sketchElement.sketchElement) {
-                case "SketchElementPoint":
-                  return [
-                    {
-                      ...sketchElement,
-                      id: renamePoint(sketchElement.id),
-                    },
-                  ];
-                case "SketchElementLine":
-                  if (
-                    renamePoint(sketchElement.endpointA) ===
-                    renamePoint(sketchElement.endpointB)
-                  ) {
-                    // This line becomes trivial.
-                    return [];
-                  }
-                  return [
-                    {
-                      ...sketchElement,
-                      endpointA: renamePoint(sketchElement.endpointA),
-                      endpointB: renamePoint(sketchElement.endpointB),
-                    },
-                  ];
-                case "SketchElementArc": {
-                  const renamedA = renamePoint(sketchElement.endpointA);
-                  const renamedB = renamePoint(sketchElement.endpointB);
-                  const renamedC = renamePoint(sketchElement.center);
-                  // If any of these 3 become equal, the arc becomes trivial.
-                  if (
-                    renamedA === renamedB ||
-                    renamedA === renamedC ||
-                    renamedB === renamedC
-                  ) {
-                    return [];
-                  }
-                  return [
-                    {
-                      ...sketchElement,
-                      endpointA: renamedA,
-                      endpointB: renamedB,
-                      center: renamedC,
-                    },
-                  ];
+        sketch: applyConstraint(
+          app.sketch.withSketchElements(
+            app.sketch.sketchElements
+              .filter((sketchElement) => {
+                if (
+                  sketchElement.sketchElement === "SketchElementPoint" &&
+                  renamedPoints.has(sketchElement.id)
+                ) {
+                  return false;
                 }
-                case "SketchElementConstraintAxisAligned": {
-                  if (
-                    renamePoint(sketchElement.pointA) ===
-                    renamePoint(sketchElement.pointB)
-                  ) {
-                    // The constraint becomes trivial.
-                    return [];
+                return true;
+              })
+              .flatMap((sketchElement): SketchElement<"renamed">[] => {
+                switch (sketchElement.sketchElement) {
+                  case "SketchElementPoint":
+                    return [
+                      {
+                        ...sketchElement,
+                        id: renamePoint(sketchElement.id),
+                      },
+                    ];
+                  case "SketchElementLine":
+                    if (
+                      renamePoint(sketchElement.endpointA) ===
+                      renamePoint(sketchElement.endpointB)
+                    ) {
+                      // This line becomes trivial.
+                      return [];
+                    }
+                    return [
+                      {
+                        ...sketchElement,
+                        endpointA: renamePoint(sketchElement.endpointA),
+                        endpointB: renamePoint(sketchElement.endpointB),
+                      },
+                    ];
+                  case "SketchElementArc": {
+                    const renamedA = renamePoint(sketchElement.endpointA);
+                    const renamedB = renamePoint(sketchElement.endpointB);
+                    const renamedC = renamePoint(sketchElement.center);
+                    // If any of these 3 become equal, the arc becomes trivial.
+                    if (
+                      renamedA === renamedB ||
+                      renamedA === renamedC ||
+                      renamedB === renamedC
+                    ) {
+                      return [];
+                    }
+                    return [
+                      {
+                        ...sketchElement,
+                        endpointA: renamedA,
+                        endpointB: renamedB,
+                        center: renamedC,
+                      },
+                    ];
                   }
-                  return [
-                    {
-                      ...sketchElement,
-                      pointA: renamePoint(sketchElement.pointA),
-                      pointB: renamePoint(sketchElement.pointB),
-                    },
-                  ];
-                }
-                case "SketchElementConstraintPointPointDistance": {
-                  if (
-                    renamePoint(sketchElement.pointA) ===
-                    renamePoint(sketchElement.pointB)
-                  ) {
-                    // The constraint becomes trivial.
-                    return [];
+                  case "SketchElementConstraintAxisAligned": {
+                    if (
+                      renamePoint(sketchElement.pointA) ===
+                      renamePoint(sketchElement.pointB)
+                    ) {
+                      // The constraint becomes trivial.
+                      return [];
+                    }
+                    return [
+                      {
+                        ...sketchElement,
+                        pointA: renamePoint(sketchElement.pointA),
+                        pointB: renamePoint(sketchElement.pointB),
+                      },
+                    ];
                   }
-                  return [
-                    {
-                      ...sketchElement,
-                      pointA: renamePoint(sketchElement.pointA),
-                      pointB: renamePoint(sketchElement.pointB),
-                    },
-                  ];
-                }
-                case "SketchElementConstraintPointLineDistance": {
-                  const line = getElement(app, sketchElement.line);
-                  const points = new Set([
-                    renamePoint(line.endpointA),
-                    renamePoint(line.endpointB),
-                    renamePoint(sketchElement.point),
-                  ]);
-                  if (points.size !== 3) {
-                    return [];
+                  case "SketchElementConstraintPointPointDistance": {
+                    if (
+                      renamePoint(sketchElement.pointA) ===
+                      renamePoint(sketchElement.pointB)
+                    ) {
+                      // The constraint becomes trivial.
+                      return [];
+                    }
+                    return [
+                      {
+                        ...sketchElement,
+                        pointA: renamePoint(sketchElement.pointA),
+                        pointB: renamePoint(sketchElement.pointB),
+                      },
+                    ];
                   }
-                  return [
-                    {
-                      ...sketchElement,
-                      point: renamePoint(sketchElement.point),
-                    },
-                  ];
-                }
-                case "SketchElementConstraintFixed": {
-                  return [
-                    {
-                      ...sketchElement,
-                      point: renamePoint(sketchElement.point),
-                    },
-                  ];
-                }
-                case "SketchElementConstraintPointOnLine": {
-                  const involvedPoints = new Set([
-                    renamePoint(sketchElement.point),
-                    renamePoint(getElement(app, sketchElement.line).endpointA),
-                    renamePoint(getElement(app, sketchElement.line).endpointB),
-                  ]);
-                  if (involvedPoints.size < 3) {
-                    return [];
+                  case "SketchElementConstraintPointLineDistance": {
+                    const line = getElement(app, sketchElement.line);
+                    const points = new Set([
+                      renamePoint(line.endpointA),
+                      renamePoint(line.endpointB),
+                      renamePoint(sketchElement.point),
+                    ]);
+                    if (points.size !== 3) {
+                      return [];
+                    }
+                    return [
+                      {
+                        ...sketchElement,
+                        point: renamePoint(sketchElement.point),
+                      },
+                    ];
                   }
-                  return [
-                    {
-                      ...sketchElement,
-                      point: renamePoint(sketchElement.point),
-                    },
-                  ];
-                }
-                case "SketchElementConstraintPointOnArc": {
-                  const arc = getElement(app, sketchElement.arc);
+                  case "SketchElementConstraintFixed": {
+                    return [
+                      {
+                        ...sketchElement,
+                        point: renamePoint(sketchElement.point),
+                      },
+                    ];
+                  }
+                  case "SketchElementConstraintPointOnLine": {
+                    const involvedPoints = new Set([
+                      renamePoint(sketchElement.point),
+                      renamePoint(
+                        getElement(app, sketchElement.line).endpointA,
+                      ),
+                      renamePoint(
+                        getElement(app, sketchElement.line).endpointB,
+                      ),
+                    ]);
+                    if (involvedPoints.size < 3) {
+                      return [];
+                    }
+                    return [
+                      {
+                        ...sketchElement,
+                        point: renamePoint(sketchElement.point),
+                      },
+                    ];
+                  }
+                  case "SketchElementConstraintPointOnArc": {
+                    const arc = getElement(app, sketchElement.arc);
 
-                  const involvedPoints = new Set([
-                    renamePoint(sketchElement.point),
-                    renamePoint(arc.endpointA),
-                    renamePoint(arc.endpointB),
-                    renamePoint(arc.center),
-                  ]);
-                  if (involvedPoints.size < 4) {
-                    return [];
+                    const involvedPoints = new Set([
+                      renamePoint(sketchElement.point),
+                      renamePoint(arc.endpointA),
+                      renamePoint(arc.endpointB),
+                      renamePoint(arc.center),
+                    ]);
+                    if (involvedPoints.size < 4) {
+                      return [];
+                    }
+                    return [
+                      {
+                        ...sketchElement,
+                        point: renamePoint(sketchElement.point),
+                      },
+                    ];
                   }
-                  return [
-                    {
-                      ...sketchElement,
-                      point: renamePoint(sketchElement.point),
-                    },
-                  ];
                 }
-              }
 
-              return assertUnreachable(
-                sketchElement,
-                `merge points: unhandled element ${JSON.stringify(
+                return assertUnreachable(
                   sketchElement,
-                )}`,
-              );
-            }),
-        }).updated,
+                  `merge points: unhandled element ${JSON.stringify(
+                    sketchElement,
+                  )}`,
+                );
+              }),
+          ),
+        ).updated,
       };
     }
   }
@@ -1699,19 +1689,16 @@ export const actionCreateLine = registerAppAction("sketch-create-line", {
     // TODO: Verify that `endpointA` and `endpointB` already exist, and that `id` does not.
     return {
       ...app,
-      sketch: {
-        ...app.sketch,
-        sketchElements: [
-          ...app.sketch.sketchElements,
-          {
-            sketchElement: "SketchElementLine",
-            id: action.id,
-            endpointA: action.endpointA,
-            endpointB: action.endpointB,
-            sketchStyle: app.controls.currentSketchStyle,
-          },
-        ],
-      },
+      sketch: app.sketch.withSketchElements([
+        ...app.sketch.sketchElements,
+        {
+          sketchElement: "SketchElementLine",
+          id: action.id,
+          endpointA: action.endpointA,
+          endpointB: action.endpointB,
+          sketchStyle: app.controls.currentSketchStyle,
+        },
+      ]),
     };
   },
 });

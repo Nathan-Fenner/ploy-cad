@@ -10,9 +10,8 @@ const actionToggleConstruction = registerAppAction("toggle-line-construction", {
   run: (app, { selected }: { selected: ReadonlySet<SketchElementID> }) => {
     return {
       ...app,
-      sketch: {
-        ...app.sketch,
-        sketchElements: app.sketch.sketchElements.map((element) => {
+      sketch: app.sketch.withSketchElements(
+        app.sketch.sketchElements.map((element) => {
           if (selected.has(element.id)) {
             if (isLineElement(element)) {
               return {
@@ -34,7 +33,7 @@ const actionToggleConstruction = registerAppAction("toggle-line-construction", {
           }
           return element;
         }),
-      },
+      ),
     };
   },
 });

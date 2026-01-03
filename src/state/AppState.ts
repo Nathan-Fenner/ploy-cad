@@ -8,7 +8,11 @@ import {
   pointSubtract,
 } from "../geometry/vector";
 import { ID } from "../id";
-import { registerConstructor } from "../save/saveToJson";
+import {
+  loadFromJson,
+  registerConstructor,
+  saveToJson,
+} from "../save/saveToJson";
 import { SketchToolState } from "./ToolState";
 
 /**
@@ -44,12 +48,36 @@ export type UndoState = {
   }[];
 };
 
-export type SketchState = {
-  /**
-   * All of the editable elements in the sketch.
-   */
-  sketchElements: readonly SketchElement[];
-};
+export class SketchState {
+  public readonly sketchElements: ReadonlyArray<SketchElement>;
+
+  constructor({
+    sketchElements,
+  }: {
+    sketchElements: ReadonlyArray<SketchElement>;
+  }) {
+    this.sketchElements = sketchElements;
+  }
+
+  public withSketchElements(
+    newSketchElements: ReadonlyArray<SketchElement>,
+  ): SketchState {
+    return new SketchState({ sketchElements: newSketchElements });
+  }
+}
+
+registerConstructor(SketchState, {
+  serialize: (sketch) => {
+    return {
+      sketchElements: saveToJson(sketch.sketchElements),
+    };
+  },
+  deserialize: (sketch) => {
+    return new SketchState({
+      sketchElements: loadFromJson(sketch.sketchElements),
+    });
+  },
+});
 
 export type AppControls = {
   panning: boolean;
@@ -434,7 +462,7 @@ export const APP_STATE_INITIAL: AppState = {
     activeSketchTool: { sketchTool: "TOOL_NONE" },
     currentSketchStyle: "sketch",
   },
-  sketch: {
+  sketch: new SketchState({
     sketchElements: [
       {
         sketchElement: "SketchElementPoint",
@@ -448,7 +476,7 @@ export const APP_STATE_INITIAL: AppState = {
         position: { x: 0, y: 0 },
       },
     ],
-  },
+  }),
   undoState: {
     undoStack: [],
   },

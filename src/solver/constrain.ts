@@ -445,8 +445,8 @@ export function applyConstraint(sketch: SketchState): {
   }
 
   return {
-    updated: {
-      sketchElements: sketch.sketchElements.map((element) => {
+    updated: sketch.withSketchElements(
+      sketch.sketchElements.map((element) => {
         if (
           element.sketchElement === "SketchElementPoint" &&
           fixedPositions.has(element.id)
@@ -458,7 +458,7 @@ export function applyConstraint(sketch: SketchState): {
         }
         return element;
       }),
-    },
+    ),
     fixedPositions,
   };
 }
