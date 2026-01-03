@@ -48,8 +48,13 @@ export type UndoState = {
   }[];
 };
 
+/**
+ * State used to represent all of the geometry, constraints, and layout within a single sketch.
+ * This class is logically immutable, but may have internal state to cache expensive computations.
+ */
 export class SketchState {
   public readonly sketchElements: ReadonlyArray<SketchElement>;
+  public readonly sketchElementsSet: ReadonlySet<SketchElement>;
 
   constructor({
     sketchElements,
@@ -57,6 +62,7 @@ export class SketchState {
     sketchElements: ReadonlyArray<SketchElement>;
   }) {
     this.sketchElements = sketchElements;
+    this.sketchElementsSet = new Set(sketchElements);
   }
 
   public withSketchElements(

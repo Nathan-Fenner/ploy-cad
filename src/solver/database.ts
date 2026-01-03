@@ -4,6 +4,47 @@ import { ID } from "../id";
 const EPSILON = 1e-5;
 
 /**
+ * Converts a fact object into a string representing its *approximate* value.
+ * This is essentially a hash function.
+ */
+export function getFactKey(fact: unknown): unknown {
+  if (fact === undefined) {
+    throw new Error("fact cannot be undefined");
+  }
+  if (fact instanceof ID) {
+    return { id: fact.id };
+  }
+  if (fact === null || typeof fact === "string" || typeof fact === "boolean") {
+    return fact;
+  }
+  if (typeof fact === "number") {
+    return "number";
+  }
+  if (Array.isArray(fact)) {
+    return fact.map(getFactKey);
+  }
+  const keys = Object.keys(fact).sort();
+  if (keys.length === 2 && keys[0] === "x" && keys[1] === "y") {
+    return "xy";
+  }
+
+  const out: Record<string, unknown> = {};
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const INDEX_IGNORE: string[] | undefined = (fact as any).INDEX_IGNORE?.split(
+    ",",
+  );
+  for (const key of keys) {
+    if (key === "INDEX_IGNORE" || INDEX_IGNORE?.includes(key)) {
+      continue;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    out[key] = getFactKey((fact as any)[key]);
+  }
+  return out;
+}
+
+/**
  * Compares two "fact" objects for approximate equality.
  * Fields must be identical, except for `number` and `XY` fields, which need only be within `EPSILON` of each other.
  * @returns Whether the facts are equal.
@@ -109,17 +150,28 @@ type QueryForFact<T> = Partial<{
 export class FactDatabase<Fact extends object> {
   // TODO: Add internal indexes to make `getFacts` faster.
   private _facts: Fact[] = [];
+  private _factsByKey: Map<string, Fact[]> = new Map();
 
   /**
    * Add a fact to the database.
    */
   public addFact(fact: Fact): void {
-    for (const existingFact of this._facts) {
+    const factKey = JSON.stringify(getFactKey(fact));
+    if (!this._factsByKey.has(factKey)) {
+      this._facts.push(fact);
+      this._factsByKey.set(factKey, [fact]);
+      return;
+    }
+
+    const relatedFacts = this._factsByKey.get(factKey)!;
+    for (const existingFact of relatedFacts) {
       if (areFactsEqual(existingFact, fact)) {
         return;
       }
     }
+
     this._facts.push(fact);
+    this._factsByKey.get(factKey)!.push(fact);
   }
 
   /**

@@ -201,7 +201,7 @@ export function applyConstraint(sketch: SketchState): {
   }
 
   // Infer new constraints
-  for (let iter = 0; iter < 10; iter++) {
+  for (let iter = 0; iter < 50; iter++) {
     const initialFactCount = database.countFacts();
 
     for (const {
