@@ -73,7 +73,7 @@ export type SketchToolCreatePointLineDistanceConstraint = {
 
 export type SketchToolEditDimension = {
   sketchTool: "TOOL_EDIT_DIMENSION";
-  dimension: ConstraintPointPointDistanceID;
+  dimension: ConstraintPointPointDistanceID | ConstraintPointLineDistanceID;
   selected: ReadonlySet<SketchElementID>;
 };
 

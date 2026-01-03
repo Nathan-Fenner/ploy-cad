@@ -152,7 +152,7 @@ export function Canvas({
         onMouseDown={(e) => {
           if (onMouseDown) {
             const now = Date.now();
-            const DOUBLE_CLICK_TIME_BUFFER = 300;
+            const DOUBLE_CLICK_TIME_BUFFER = 350;
 
             const isDouble =
               lastClickTimeRef.current !== null &&

@@ -295,7 +295,7 @@ export type AppActionSketchDelete = {
 
 export type AppActionSketchUpdateConstraint = {
   action: "SKETCH_UPDATE_CONSTRAINT";
-  dimensionID: ConstraintPointPointDistanceID;
+  dimensionID: ConstraintPointPointDistanceID | ConstraintPointLineDistanceID;
   newDistance: number;
 };
 
@@ -677,6 +677,20 @@ export function applyAppActionImplementation(
         ) {
           // The user double-clicked a dimension that is already selected.
           // Enter constraint-editing mode.
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: {
+              sketchTool: "TOOL_EDIT_DIMENSION",
+              dimension: nearbyGeometry.id,
+              selected: tool.selected,
+            },
+          });
+        } else if (
+          action.isDouble &&
+          isConstraintPointLineDistanceID(nearbyGeometry.id) &&
+          tool.sketchTool === "TOOL_SELECT" &&
+          tool.selected.has(nearbyGeometry.id)
+        ) {
           return applyAppAction(app, {
             action: "STATE_CHANGE_TOOL",
             newTool: {

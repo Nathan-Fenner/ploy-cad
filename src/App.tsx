@@ -17,6 +17,7 @@ _registerAllTools.registerTools();
 import {
   APP_STATE_INITIAL,
   AppState,
+  ConstraintPointLineDistanceID,
   ConstraintPointPointDistanceID,
   SketchState,
   View,
@@ -274,7 +275,7 @@ function ModalEditDimensionValue({
 }: {
   appState: AppState;
   dispatch: (action: AppAction) => void;
-  dimensionID: ConstraintPointPointDistanceID;
+  dimensionID: ConstraintPointPointDistanceID | ConstraintPointLineDistanceID;
   onClose: () => void;
 }) {
   const dimension = useMemo(() => {
@@ -307,12 +308,12 @@ function ModalEditDimensionValue({
       return { ok: false, message: "You must enter a finite value." };
     }
 
-    if (newValue < 0) {
+    if (newValue < 0 && dimensionID instanceof ConstraintPointPointDistanceID) {
       return { ok: false, message: "You must enter a positive value." };
     }
 
     return { ok: true, value: newValue };
-  }, [valueAsText]);
+  }, [dimensionID, valueAsText]);
 
   const submitCurrentValue = () => {
     if (validatedResult.ok) {
