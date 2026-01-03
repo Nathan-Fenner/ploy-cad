@@ -35,12 +35,22 @@ import {
   pointSubtract,
 } from "../geometry/vector";
 import { ID } from "../id";
-import { SketchToolState } from "./ToolState";
+import {
+  handleToolEffect,
+  INITIAL_TOOL_STATE,
+  runTool,
+  ToolFlowSend,
+  type SketchToolState,
+  type ToolFunction,
+  type ToolInterface,
+} from "./ToolState";
 import { applyConstraint } from "../solver/constrain";
 import { findClosestGeometryNear } from "./findClosestGeometryNear";
 import { findAllGeometryFullyWithinBox } from "./findAllGeometryFullyWithinBox";
 import { findAllGeometryPartiallyWithinBox } from "./findAllGeometryPartiallyWithinBox";
 import { findOrCreatePointNear } from "./findOrCreatePointNear";
+import { SketchMarker } from "../editor-view/SketchMarker";
+import { SketchLine } from "../editor-view/SketchLine";
 
 /**
  * A type-erased action definition.
@@ -112,6 +122,25 @@ export function registerAppAction<Props>(
       actionProps,
     };
   };
+}
+
+const globalTools = new Map<string, ToolFunction>();
+
+/**
+ * Registers a tool function.
+ *
+ * Tool functions must be completely deterministic.
+ * The `ToolInterface` callbacks throw special exceptions which
+ * must not be caught, or the tool will misbehave.
+ */
+export function registerTool(
+  toolName: string,
+  toolFunction: ToolFunction,
+): void {
+  if (globalTools.has(toolName)) {
+    throw new Error(`cannot register already-registered tool '${toolName}'`);
+  }
+  globalTools.set(toolName, toolFunction);
 }
 
 export type AppAction =
@@ -397,6 +426,58 @@ export function applyAppActionImplementation(
         },
       };
     case "STATE_CHANGE_TOOL": {
+      if (action.newTool.sketchTool === "TOOL_FLOW") {
+        const flowTool = action.newTool;
+        if (flowTool.flowNeeds.recordType === "abort") {
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: { sketchTool: "TOOL_NONE" },
+          });
+        }
+        if (flowTool.flowNeeds.recordType === "generate-id") {
+          const nextState = handleToolEffect(flowTool.flowState, {
+            recordType: "generate-id",
+            receive: {
+              id: new flowTool.flowNeeds.send.idClass(ID.uniqueID()),
+            },
+          });
+          const nextNeeds = runTool(
+            globalTools.get(flowTool.toolName)!,
+            nextState,
+          );
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: {
+              sketchTool: "TOOL_FLOW",
+              toolName: flowTool.toolName,
+              flowState: nextState,
+              flowNeeds: nextNeeds,
+            },
+          });
+        }
+        if (flowTool.flowNeeds.recordType === "apply-action") {
+          // Apply this action, then move on to the next tool step.
+          app = applyAppAction(app, flowTool.flowNeeds.send.action);
+          const nextState = handleToolEffect(flowTool.flowState, {
+            recordType: "apply-action",
+            receive: null,
+          });
+          const nextNeeds = runTool(
+            globalTools.get(flowTool.toolName)!,
+            nextState,
+          );
+          return applyAppAction(app, {
+            action: "STATE_CHANGE_TOOL",
+            newTool: {
+              sketchTool: "TOOL_FLOW",
+              toolName: flowTool.toolName,
+              flowState: nextState,
+              flowNeeds: nextNeeds,
+            },
+          });
+        }
+      }
+
       return {
         ...app,
         controls: {
@@ -407,6 +488,31 @@ export function applyAppActionImplementation(
     }
     case "INTERFACE_CLICK": {
       const tool = app.controls.activeSketchTool;
+      if (
+        tool.sketchTool === "TOOL_FLOW" &&
+        tool.flowNeeds.recordType === "pick-or-create-point"
+      ) {
+        const foundPoint = findOrCreatePointNear(app, action.at);
+        app = foundPoint.app;
+
+        const nextState = handleToolEffect(tool.flowState, {
+          recordType: "pick-or-create-point",
+          receive: { point: foundPoint.id },
+        });
+
+        const nextTool = runTool(globalTools.get(tool.toolName)!, nextState);
+
+        // Apply the next step to the tool.
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: {
+            sketchTool: "TOOL_FLOW",
+            toolName: tool.toolName,
+            flowState: nextState,
+            flowNeeds: nextTool,
+          },
+        });
+      }
       if (tool.sketchTool === "TOOL_CREATE_POINT") {
         // Create a new point.
         const id = ID.uniqueID();
@@ -415,35 +521,6 @@ export function applyAppActionImplementation(
           id: new PointID(id),
           at: action.at,
         });
-      }
-      if (tool.sketchTool === "TOOL_CREATE_LINE") {
-        // Find or create a point near the mouse.
-        const { app: newApp, id } = findOrCreatePointNear(app, action.at);
-        app = newApp;
-        return applyAppAction(app, {
-          action: "STATE_CHANGE_TOOL",
-          newTool: { sketchTool: "TOOL_CREATE_LINE_FROM_POINT", fromPoint: id },
-        });
-      }
-      if (tool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT") {
-        const fromPoint = tool.fromPoint;
-        const { app: newApp, id: toPoint } = findOrCreatePointNear(
-          app,
-          action.at,
-        );
-        app = newApp;
-        return applyAppAction(
-          app,
-          actionCreateLine({
-            id: new LineID(ID.uniqueID()),
-            endpointA: fromPoint,
-            endpointB: toPoint,
-          }),
-          {
-            action: "STATE_CHANGE_TOOL",
-            newTool: { sketchTool: "TOOL_NONE" },
-          },
-        );
       }
       if (tool.sketchTool === "TOOL_CREATE_ARC") {
         // Find or create a point near the mouse.
@@ -791,12 +868,6 @@ export function applyAppActionImplementation(
           newTool: { sketchTool: "TOOL_CREATE_POINT" },
         });
       }
-      if (action.key === "l") {
-        return applyAppAction(app, {
-          action: "STATE_CHANGE_TOOL",
-          newTool: { sketchTool: "TOOL_CREATE_LINE" },
-        });
-      }
       if (action.key === "a") {
         return applyAppAction(app, {
           action: "STATE_CHANGE_TOOL",
@@ -986,6 +1057,57 @@ export function applyAppActionImplementation(
           });
         }
       }
+
+      // Check all registered tools.
+      for (const [toolName, tool] of globalTools) {
+        let state = INITIAL_TOOL_STATE;
+        let isTriggered = false;
+
+        let lastRequest: ToolFlowSend | null = null;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          lastRequest = runTool(tool, state);
+          if (
+            lastRequest.recordType === "trigger-key" &&
+            action.key === lastRequest.send.key
+          ) {
+            // Mark the tool as triggered, so that its effects can be applied.
+            isTriggered = true;
+            state = handleToolEffect(state, {
+              recordType: "trigger-key",
+              receive: { key: action.key },
+            });
+            continue;
+          }
+          break;
+        }
+
+        if (!isTriggered) {
+          // Nothing triggered the tool to fire.
+          continue;
+        }
+
+        if (lastRequest === null) {
+          // The tool ran to completion!
+          // This could happen for an 'instant' tool like adding a constraint to the current selection.
+          break;
+        }
+
+        return applyAppAction(app, {
+          action: "STATE_CHANGE_TOOL",
+          newTool: {
+            sketchTool: "TOOL_FLOW",
+            toolName,
+            flowNeeds: lastRequest,
+            flowState: handleToolEffect(INITIAL_TOOL_STATE, {
+              recordType: "trigger-key",
+              receive: { key: action.key },
+            }),
+          },
+        });
+      }
+
       return app;
     }
     case "SKETCH_CREATE_POINT": {
@@ -1575,9 +1697,46 @@ export const actionCreateLine = registerAppAction("sketch-create-line", {
   },
 });
 
-/**
- * This
- */
+function toolCreateLine(tool: ToolInterface) {
+  tool.trigger({ key: "l" });
+
+  const endpointA = tool.pickOrCreatePoint("endpoint-1");
+  const endpointB = tool.pickOrCreatePoint("endpoint-2", {
+    preview: (appState, view) => {
+      const fromXY = getPointPosition(appState, endpointA);
+      const destination = findOrCreatePointNear(
+        appState,
+        view.cursorAt,
+      ).position;
+      return (
+        <>
+          <SketchMarker key="from-marker" position={fromXY} />
+          <SketchLine
+            key="line-preview"
+            endpointA={fromXY}
+            endpointB={destination}
+            lineStyle="preview"
+          />
+        </>
+      );
+    },
+  });
+
+  if (endpointA === endpointB) {
+    tool.abort();
+  }
+
+  tool.apply(
+    actionCreateLine({
+      id: tool.generateID(LineID),
+      endpointA,
+      endpointB,
+    }),
+  );
+}
+
+registerTool("line", toolCreateLine);
+
 function assertUnreachable(
   _x: never,
   message: string = "expected unreachable",

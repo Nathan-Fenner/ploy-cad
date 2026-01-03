@@ -339,7 +339,13 @@ function ModalView({
 }
 
 function DebugToolStateLabel({ tool }: { tool: SketchToolState }) {
-  return <span>{tool.sketchTool}</span>;
+  return (
+    <span>
+      {tool.sketchTool}
+      {tool.sketchTool === "TOOL_FLOW" && " " + tool.toolName}
+      {tool.sketchTool === "TOOL_FLOW" && " / " + tool.flowNeeds.recordType}
+    </span>
+  );
 }
 function DebugToolStateExtra({ tool }: { tool: SketchToolState }) {
   if (tool.sketchTool === "TOOL_SELECT") {

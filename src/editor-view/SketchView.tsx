@@ -25,6 +25,7 @@ import {
 import { SketchLinearDimension } from "./SketchLinearDimension";
 import { displayDistance } from "./displayDistance";
 import { SketchArc } from "./SketchArc";
+import React from "react";
 
 export function SketchView({
   appState,
@@ -290,8 +291,8 @@ export function SketchView({
 
         const sketchTool = appState.controls.activeSketchTool;
 
-        if (sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT") {
-          const fromXY = getPointPosition(appState, sketchTool.fromPoint);
+        if (sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_POINT") {
+          const fromXY = getPointPosition(appState, sketchTool.endpointA);
           previewElements.push(
             <SketchMarker key="from-marker" position={fromXY} />,
           );
@@ -310,23 +311,16 @@ export function SketchView({
           );
         }
 
-        if (sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_POINT") {
-          const fromXY = getPointPosition(appState, sketchTool.endpointA);
+        if (
+          sketchTool.sketchTool === "TOOL_FLOW" &&
+          sketchTool.flowNeeds.send !== null &&
+          "preview" in sketchTool.flowNeeds.send &&
+          sketchTool.flowNeeds.send.preview
+        ) {
           previewElements.push(
-            <SketchMarker key="from-marker" position={fromXY} />,
-          );
-
-          const destination = findOrCreatePointNear(
-            appState,
-            cursorAt,
-          ).position;
-          previewElements.push(
-            <SketchLine
-              key="line-preview"
-              endpointA={fromXY}
-              endpointB={destination}
-              lineStyle="preview"
-            />,
+            <React.Fragment key="tool-flow-preview">
+              {sketchTool.flowNeeds.send.preview(appState, { cursorAt })}
+            </React.Fragment>,
           );
         }
 
@@ -367,11 +361,11 @@ export function SketchView({
         const sketchTool = appState.controls.activeSketchTool;
         if (
           sketchTool.sketchTool === "TOOL_CREATE_POINT" ||
-          sketchTool.sketchTool === "TOOL_CREATE_LINE" ||
-          sketchTool.sketchTool === "TOOL_CREATE_LINE_FROM_POINT" ||
           sketchTool.sketchTool === "TOOL_CREATE_ARC" ||
           sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_POINT" ||
-          sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_TWO_POINTS"
+          sketchTool.sketchTool === "TOOL_CREATE_ARC_FROM_TWO_POINTS" ||
+          (sketchTool.sketchTool === "TOOL_FLOW" &&
+            sketchTool.flowNeeds.recordType === "pick-or-create-point")
         ) {
           return <SketchMarker position={hoveringPoint.position} />;
         }
