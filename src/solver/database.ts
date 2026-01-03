@@ -116,6 +116,34 @@ export function areFactsEqual(fact1: object, fact2: object): boolean {
   return true;
 }
 
+/**
+ * Finds all of the IDs mentioned in the fact.
+ */
+export function getFactEntities(fact: unknown): Set<ID> {
+  const ids = new Set<ID>();
+  addEntitiesForFact(fact, ids);
+  return ids;
+}
+
+function addEntitiesForFact(fact: unknown, ids: Set<ID>): void {
+  if (fact instanceof ID) {
+    ids.add(fact);
+    return;
+  }
+  if (fact === null || typeof fact !== "object") {
+    return;
+  }
+  if (Array.isArray(fact)) {
+    for (const item of fact) {
+      addEntitiesForFact(item, ids);
+    }
+    return;
+  }
+  for (const value of Object.values(fact)) {
+    addEntitiesForFact(value, ids);
+  }
+}
+
 export const ANY = Symbol("ANY");
 export type AnySymbol = typeof ANY;
 
@@ -151,15 +179,45 @@ export class FactDatabase<Fact extends object> {
   // TODO: Add internal indexes to make `getFacts` faster.
   private _facts: Fact[] = [];
   private _factsByKey: Map<string, Fact[]> = new Map();
+  private _fullyDetermined = new Set<ID>();
+  private _determinesIDs?: (f: Fact) => ID[];
+
+  constructor({ determinesIDs }: { determinesIDs?: (f: Fact) => ID[] }) {
+    this._determinesIDs = determinesIDs;
+  }
+
+  private _internalAddFact(fact: Fact): void {
+    this._facts.push(fact);
+    // If this fact fully determines any IDs, record this.
+    const determines = this._determinesIDs?.(fact);
+    if (determines?.length) {
+      for (const d of determines) {
+        this._fullyDetermined.add(d);
+      }
+    }
+  }
 
   /**
    * Add a fact to the database.
    */
   public addFact(fact: Fact): void {
+    const mentions = getFactEntities(fact);
+    let allFixed = true;
+    for (const id of mentions) {
+      if (!this._fullyDetermined.has(id)) {
+        allFixed = false;
+        break;
+      }
+    }
+
+    if (allFixed) {
+      return;
+    }
+
     const factKey = JSON.stringify(getFactKey(fact));
     if (!this._factsByKey.has(factKey)) {
-      this._facts.push(fact);
       this._factsByKey.set(factKey, [fact]);
+      this._internalAddFact(fact);
       return;
     }
 
@@ -170,8 +228,8 @@ export class FactDatabase<Fact extends object> {
       }
     }
 
-    this._facts.push(fact);
     this._factsByKey.get(factKey)!.push(fact);
+    this._internalAddFact(fact);
   }
 
   /**

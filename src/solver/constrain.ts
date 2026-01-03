@@ -85,7 +85,14 @@ export function applyConstraint(sketch: SketchState): {
   updated: SketchState;
   fixedPositions: ReadonlyMap<PointID, XY>;
 } {
-  const database = new FactDatabase<GeomFact>();
+  const database = new FactDatabase<GeomFact>({
+    determinesIDs: (f) => {
+      if (f.geom === "fixed") {
+        return [f.point];
+      }
+      return [];
+    },
+  });
 
   const originalLocations = new Map<PointID, XY>();
 
