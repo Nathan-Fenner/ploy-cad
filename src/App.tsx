@@ -126,6 +126,7 @@ function App() {
           SAVED_SKETCH_LOCAL_STORAGE_KEY,
           JSON.stringify(serialized),
         );
+        console.info("saved succesfully!");
       } catch (err) {
         console.error(
           "unable to save sketch state to json: ",

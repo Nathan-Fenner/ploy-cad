@@ -131,8 +131,20 @@ export function isLineID(id: SketchElementID): id is LineID {
   return id instanceof LineID;
 }
 
+export function isLineElement(
+  element: SketchElement,
+): element is SketchElementLine {
+  return isLineID(element.id);
+}
+
 export function isArcID(id: SketchElementID): id is ArcID {
   return id instanceof ArcID;
+}
+
+export function isArcElement(
+  element: SketchElement,
+): element is SketchElementArc {
+  return isArcID(element.id);
 }
 
 export function isConstraintFixedID(
@@ -224,10 +236,10 @@ export class ConstraintPointOnArcID extends ID {
   __constraintPointOnArc: void = undefined;
 }
 
-registerConstructor(ConstraintPointOnLineID, {
-  serialize: (p: ConstraintPointOnLineID) => p.id,
-  deserialize: (p: any): ConstraintPointOnLineID =>
-    new ConstraintPointOnLineID(p),
+registerConstructor(ConstraintPointOnArcID, {
+  serialize: (p: ConstraintPointOnArcID) => p.id,
+  deserialize: (p: any): ConstraintPointOnArcID =>
+    new ConstraintPointOnArcID(p),
 });
 
 /**

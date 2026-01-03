@@ -22,6 +22,7 @@ export function saveToJson(value: any): any {
   const proto = Object.getPrototypeOf(value);
   if (
     proto === null ||
+    proto === undefined ||
     proto === Object ||
     proto === Object.getPrototypeOf({})
   ) {
@@ -39,6 +40,7 @@ export function saveToJson(value: any): any {
     return { ["$" + valueConstructor.name]: f.serialize(value) };
   }
 
+  console.error({ value, proto });
   throw new Error(`object has unexpected proto ${proto}`);
 }
 

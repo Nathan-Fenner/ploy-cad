@@ -102,6 +102,7 @@ export type ToolFlowTriggerKey = {
   };
   receive: {
     key: string;
+    selected: ReadonlySet<SketchElementID>;
   };
 };
 
@@ -174,7 +175,10 @@ export type ToolInterface = {
    *
    * This indicates the trigger for the tool.
    */
-  trigger: (trigger: { key: string }) => void;
+  trigger: (trigger: { key: string }) => {
+    key: string;
+    selected: ReadonlySet<SketchElementID>;
+  };
 
   /**
    * Asks the user to select a point, or creates a new one
@@ -243,8 +247,11 @@ export function runTool(
   };
 
   const iface: ToolInterface = {
-    trigger: function (trigger: { key: string }): void {
-      effectStep<ToolFlowTriggerKey>({
+    trigger: function (trigger: { key: string }): {
+      key: string;
+      selected: ReadonlySet<SketchElementID>;
+    } {
+      return effectStep<ToolFlowTriggerKey>({
         recordType: "trigger-key",
         send: trigger,
       });

@@ -45,7 +45,13 @@ export const SketchArc = memo(
       <>
         <path
           vectorEffect="non-scaling-stroke"
-          strokeDasharray={lineStyle === "preview" ? "3 2" : undefined}
+          strokeDasharray={
+            lineStyle === "sketch-construction"
+              ? "5 5 2 5"
+              : lineStyle === "preview"
+              ? "3 2"
+              : undefined
+          }
           strokeWidth={lineStyle === "selection-halo" ? 15 : 2}
           stroke={
             selected

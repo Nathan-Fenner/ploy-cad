@@ -1055,6 +1055,11 @@ export function applyAppActionImplementation(
         }
       }
 
+      const currentSelection: ReadonlySet<SketchElementID> =
+        app.controls.activeSketchTool.sketchTool === "TOOL_SELECT"
+          ? app.controls.activeSketchTool.selected
+          : new Set();
+
       // Check all registered tools.
       for (const [toolName, tool] of globalTools) {
         let state = INITIAL_TOOL_STATE;
@@ -1073,7 +1078,10 @@ export function applyAppActionImplementation(
             isTriggered = true;
             state = handleToolEffect(state, {
               recordType: "trigger-key",
-              receive: { key: action.key },
+              receive: {
+                key: action.key,
+                selected: currentSelection,
+              },
             });
             continue;
           }
@@ -1099,7 +1107,7 @@ export function applyAppActionImplementation(
             flowNeeds: lastRequest,
             flowState: handleToolEffect(INITIAL_TOOL_STATE, {
               recordType: "trigger-key",
-              receive: { key: action.key },
+              receive: { key: action.key, selected: currentSelection },
             }),
           },
         });
