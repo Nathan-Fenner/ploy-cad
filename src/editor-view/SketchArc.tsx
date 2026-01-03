@@ -70,20 +70,20 @@ export const SketchArc = memo(
           vectorEffect="non-scaling-stroke"
           stroke={"#0ff"}
           strokeDasharray="1 5 6 5"
-          x1={endpointA.x}
-          y1={endpointA.y}
-          x2={center.x}
-          y2={center.y}
+          x1={center.x}
+          y1={center.y}
+          x2={endpointA.x}
+          y2={endpointA.y}
           strokeWidth={1}
         />
         <line
           vectorEffect="non-scaling-stroke"
           stroke={"#0ff"}
           strokeDasharray="1 5 6 5"
-          x1={endpointB.x}
-          y1={endpointB.y}
-          x2={center.x}
-          y2={center.y}
+          x1={center.x}
+          y1={center.y}
+          x2={endpointB.x}
+          y2={endpointB.y}
           strokeWidth={1}
         />
       </>
