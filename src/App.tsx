@@ -284,6 +284,9 @@ function ModalEditDimensionValue({
   const [valueAsText, setValueAsText] = useState(() => {
     return dimension.distance.toFixed(2);
   });
+  const [isMeasureOnly, setIsMeasureOnly] = useState(
+    dimension.measureOnly ?? false,
+  );
 
   const inputRef = useRef<HTMLInputElement>(null!);
   useEffect(() => {
@@ -321,6 +324,7 @@ function ModalEditDimensionValue({
         action: "SKETCH_UPDATE_CONSTRAINT",
         dimensionID,
         newDistance: validatedResult.value,
+        measureOnly: isMeasureOnly,
       });
       onClose();
     }
@@ -342,6 +346,17 @@ function ModalEditDimensionValue({
           }
         }}
       />
+
+      <label>
+        <input
+          type="checkbox"
+          checked={!isMeasureOnly}
+          onChange={(e) => {
+            setIsMeasureOnly(!e.currentTarget.checked);
+          }}
+        />
+        Constrain Geometry
+      </label>
 
       <button
         onClick={() => {

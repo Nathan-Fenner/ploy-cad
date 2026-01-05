@@ -1,6 +1,7 @@
 import { memo, useContext, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_SKETCH_CONSTRAINT,
+  COLOR_SKETCH_MEASUREMENT,
   COLOR_SKETCH_SELECT_HALO,
 } from "../palette/colors";
 import { XY } from "../state/AppState";
@@ -15,21 +16,28 @@ import {
 } from "../geometry/vector";
 import { PixelSize } from "../canvas/Canvas";
 
-export type SketchPointProps = {
+export type SketchLinearDimensionProps = {
   a: XY;
   b: XY;
   t: number;
   offset: number;
   label: string;
 
-  dimensionStyle?: "normal" | "selection-halo";
+  dimensionStyle?: "normal" | "selection-halo" | "measure-only";
 };
 
 const EXTENSION_LINE_GAP = { world: 0.85 };
 const EXTENSION_LINE_EXTRA = { world: 10 };
 
 export const SketchLinearDimension = memo(
-  ({ a, b, t, offset, label, dimensionStyle = "normal" }: SketchPointProps) => {
+  ({
+    a,
+    b,
+    t,
+    offset,
+    label,
+    dimensionStyle = "normal",
+  }: SketchLinearDimensionProps) => {
     const pixelSize = useContext(PixelSize);
 
     const [textBounds, setTextBounds] = useState<{
@@ -88,9 +96,11 @@ export const SketchLinearDimension = memo(
     const color =
       dimensionStyle === "normal"
         ? COLOR_SKETCH_CONSTRAINT
+        : dimensionStyle === "measure-only"
+        ? COLOR_SKETCH_MEASUREMENT
         : COLOR_SKETCH_SELECT_HALO;
 
-    const strokeWidth = dimensionStyle === "normal" ? undefined : 15;
+    const strokeWidth = dimensionStyle === "selection-halo" ? 15 : undefined;
 
     const ptGapA = pointAdd(a, extensionGap);
     const ptEndA = pointAdd(a, extensionEnd);
@@ -296,7 +306,7 @@ export const SketchLinearDimension = memo(
           />
         ))}
 
-        {dimensionStyle === "normal" && (
+        {dimensionStyle !== "selection-halo" && (
           <text
             ref={labelTextRef}
             x={labelPosition.x}

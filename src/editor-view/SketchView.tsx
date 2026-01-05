@@ -258,7 +258,12 @@ export function SketchView({
               b={b}
               t={element.cosmetic.t}
               offset={element.cosmetic.offset}
-              label={displayDistance(element.distance)}
+              label={
+                element.measureOnly
+                  ? displayDistance(distanceBetweenPoints(a, b))
+                  : displayDistance(element.distance)
+              }
+              dimensionStyle={element.measureOnly ? "measure-only" : "normal"}
             />
           );
         }
@@ -277,7 +282,12 @@ export function SketchView({
               b={projected}
               t={element.cosmetic.t}
               offset={element.cosmetic.offset}
-              label={displayDistance(element.distance)}
+              label={
+                element.measureOnly
+                  ? displayDistance(distanceBetweenPoints(a, projected))
+                  : displayDistance(element.distance)
+              }
+              dimensionStyle={element.measureOnly ? "measure-only" : "normal"}
             />
           );
         }

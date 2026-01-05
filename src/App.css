@@ -9,6 +9,8 @@
   --sketch-line-construction-stroke: rgb(67, 196, 255);
   --sketch-point-fill: transparent;
 
+  --sketch-measurement: rgb(255, 153, 20);
+
   --sketch-marker-stroke: rgb(255, 117, 31);
   --sketch-preview: rgb(255, 117, 31);
   --sketch-selected: rgb(31, 109, 255);

@@ -25,6 +25,8 @@ import {
   ConstraintPointOnArcID,
   isConstraintPointLineDistanceID,
   ConstraintPointLineDistanceID,
+  isConstraintPointPointDistanceElement,
+  isConstraintPointLineDistanceElement,
 } from "./AppState";
 import {
   distanceBetweenPoints,
@@ -296,7 +298,8 @@ export type AppActionSketchDelete = {
 export type AppActionSketchUpdateConstraint = {
   action: "SKETCH_UPDATE_CONSTRAINT";
   dimensionID: ConstraintPointPointDistanceID | ConstraintPointLineDistanceID;
-  newDistance: number;
+  newDistance?: number;
+  measureOnly?: boolean;
 };
 
 export type AppActionSketchMergePoints = {
@@ -1324,8 +1327,16 @@ export function applyAppActionImplementation(
         sketch: applyConstraint(
           app.sketch.withSketchElements(
             app.sketch.sketchElements.map((element) => {
-              if (element.id === action.dimensionID) {
-                return { ...element, distance: action.newDistance };
+              if (
+                (isConstraintPointPointDistanceElement(element) ||
+                  isConstraintPointLineDistanceElement(element)) &&
+                element.id === action.dimensionID
+              ) {
+                return {
+                  ...element,
+                  distance: action.newDistance ?? element.distance,
+                  measureOnly: action.measureOnly ?? element.measureOnly,
+                };
               } else {
                 return element;
               }

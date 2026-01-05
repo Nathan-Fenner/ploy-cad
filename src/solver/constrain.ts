@@ -5,6 +5,7 @@ import {
   intersectionBetweenLineAndCircle,
   intersectionBetweenTwoCircles,
   intersectionBetweenTwoLines,
+  midpointBetweenPoints,
   pointAdd,
   pointNormalize,
   pointScale,
@@ -153,7 +154,10 @@ export function applyConstraint(sketch: SketchState): {
         point2: element.pointA,
       });
     }
-    if (element.sketchElement === "SketchElementConstraintPointPointDistance") {
+    if (
+      element.sketchElement === "SketchElementConstraintPointPointDistance" &&
+      !element.measureOnly
+    ) {
       for (const [pa, pb] of [
         [element.pointA, element.pointB],
         [element.pointB, element.pointA],
@@ -167,7 +171,10 @@ export function applyConstraint(sketch: SketchState): {
         });
       }
     }
-    if (element.sketchElement === "SketchElementConstraintPointLineDistance") {
+    if (
+      element.sketchElement === "SketchElementConstraintPointLineDistance" &&
+      !element.measureOnly
+    ) {
       const line = getSketchElement(sketch, element.line);
       database.addFact({
         geom: "point-line-distance",
@@ -412,6 +419,37 @@ export function applyConstraint(sketch: SketchState): {
             b: fixedOnLine[1],
           });
         }
+      }
+    }
+
+    for (const equidistant of database.getFacts({ geom: "equidistant" })) {
+      const fixed1 = database.getFacts({
+        geom: "fixed",
+        point: equidistant.point1,
+      });
+      const fixed2 = database.getFacts({
+        geom: "fixed",
+        point: equidistant.point2,
+      });
+
+      if (
+        fixed1.length > 0 &&
+        fixed2.length > 0 &&
+        distanceBetweenPoints(fixed1[0].position, fixed2[0].position) > EPS
+      ) {
+        const f1 = fixed1[0].position;
+        const f2 = fixed2[0].position;
+        const center = midpointBetweenPoints(f1, f2);
+        const perp = {
+          x: center.x + (f2.y - f1.y),
+          y: center.y - (f2.x - f1.x),
+        };
+        database.addFact({
+          geom: "line",
+          point: equidistant.center,
+          a: center,
+          b: perp,
+        });
       }
     }
 

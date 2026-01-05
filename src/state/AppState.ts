@@ -199,10 +199,22 @@ export function isConstraintPointPointDistanceID(
   return id instanceof ConstraintPointPointDistanceID;
 }
 
+export function isConstraintPointPointDistanceElement<T>(
+  element: SketchElement<T>,
+): element is SketchElementConstraintPointPointDistance<T> {
+  return isConstraintPointPointDistanceID(element.id);
+}
+
 export function isConstraintPointLineDistanceID(
   id: SketchElementID,
 ): id is ConstraintPointLineDistanceID {
   return id instanceof ConstraintPointLineDistanceID;
+}
+
+export function isConstraintPointLineDistanceElement<T>(
+  element: SketchElement<T>,
+): element is SketchElementConstraintPointLineDistance<T> {
+  return isConstraintPointLineDistanceID(element.id);
 }
 
 export function isConstraintPointOnLineID(
@@ -430,6 +442,11 @@ export type SketchElementConstraintPointPointDistance<Tag = unknown> = {
   pointB: PointID<Tag>;
   distance: number /** TODO: Replace this with a formula */;
 
+  /**
+   * If this is true, then the dimension is only informational, and doesn't constrain anything.
+   */
+  measureOnly?: boolean;
+
   cosmetic: {
     /**
      * The ratio along the line pointA-->pointB where the label is placed.
@@ -448,6 +465,11 @@ export type SketchElementConstraintPointLineDistance<Tag = unknown> = {
   point: PointID<Tag>;
   line: LineID;
   distance: number /** TODO: Replace this with a formula */;
+
+  /**
+   * If this is true, then the dimension is only informational, and doesn't constrain anything.
+   */
+  measureOnly?: boolean;
 
   cosmetic: {
     /**
